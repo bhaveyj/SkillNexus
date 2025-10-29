@@ -182,3 +182,4 @@ npm run db:studio
 ## License
 
 This project is licensed under the MIT License.
+# Test trigger
