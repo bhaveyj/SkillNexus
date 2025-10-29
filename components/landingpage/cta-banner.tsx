@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
 export function CtaBanner() {
@@ -14,11 +15,11 @@ export function CtaBanner() {
             </p>
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <Button className="flex-1 md:flex-none">
-              Get started free
+            <Button className="flex-1 md:flex-none" asChild>
+              <Link href="/auth/signup">Get started free</Link>
             </Button>
-            <Button variant="outline" className="flex-1 md:flex-none">
-              Browse topics
+            <Button variant="outline" className="flex-1 md:flex-none" asChild>
+              <Link href="/dashboard">Browse topics</Link>
             </Button>
           </div>
         </div>

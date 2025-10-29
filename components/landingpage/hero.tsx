@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
@@ -19,8 +20,12 @@ export function Hero() {
               on AI, ML, and emerging technologies.
             </p>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <Button>Find a skill partner</Button>
-              <Button variant="secondary">Explore masterclasses</Button>
+              <Button asChild>
+                <Link href="/auth/signup">Find a skill partner</Link>
+              </Button>
+              <Button variant="secondary" asChild>
+                <Link href="/dashboard">Explore masterclasses</Link>
+              </Button>
             </div>
             <div className="flex flex-wrap gap-2 pt-2">
               {topics.map((t) => (
