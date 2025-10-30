@@ -1,8 +1,11 @@
 name: Deploy to Vercel
 
-# Temporarily disabled - deploy manually to Vercel first
 on:
-  workflow_dispatch: # This allows manual triggering only
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # This allows manual triggering
 
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
