@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { LoaderTwo } from "@/components/ui/loader"
 
 export default function Dashboard() {
   const { data: session, status } = useSession()
@@ -19,7 +20,7 @@ export default function Dashboard() {
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="text-white">Loading...</div>
+        <LoaderTwo />
       </div>
     )
   }
