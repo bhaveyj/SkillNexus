@@ -1,6 +1,5 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card"
 
 const items = [
