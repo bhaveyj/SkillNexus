@@ -1,6 +1,5 @@
 "use client"
 
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card"
 import { LoaderTwo } from "@/components/ui/loader"

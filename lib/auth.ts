@@ -64,9 +64,17 @@ export const authOptions: NextAuthOptions = {
     signIn: "/auth/signin",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account, profile }) {
       if (user) {
         token.role = user.role
+        token.picture = user.image
+      }
+      // For OAuth providers, get the profile image
+      if (account?.provider === "google" && profile) {
+        token.picture = (profile as { picture?: string }).picture
+      }
+      if (account?.provider === "github" && profile) {
+        token.picture = (profile as { avatar_url?: string }).avatar_url
       }
       return token
     },
@@ -74,6 +82,7 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.sub!
         session.user.role = token.role as string
+        session.user.image = token.picture as string
       }
       return session
     },

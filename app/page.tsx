@@ -1,6 +1,7 @@
 import { SiteHeader } from "@/components/landingpage/site-header"
 import { Hero } from "@/components/landingpage/hero"
 import { ValueProps } from "@/components/landingpage/value-props"
+import { HeroScrollDemo } from "@/components/landingpage/hero-scroll-demo"
 import { HowItWorks } from "@/components/landingpage/how-it-works"
 import { Masterclasses } from "@/components/landingpage/masterclasses"
 import { CtaBanner } from "@/components/landingpage/cta-banner"
@@ -12,6 +13,7 @@ export default function Page() {
       <SiteHeader />
       <Hero />
       <ValueProps />
+      <HeroScrollDemo />
       <HowItWorks />
       <Masterclasses />
       <CtaBanner />
