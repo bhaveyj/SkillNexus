@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { sendMasterclassRegistrationEmail } from '@/lib/email';
+import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { sendMasterclassRegistrationEmail } from "@/lib/email"
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { masterclassId } = await req.json();
+    const { masterclassId } = await _req.json();
 
     if (!masterclassId) {
       return NextResponse.json(

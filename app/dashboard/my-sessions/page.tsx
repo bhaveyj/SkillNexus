@@ -106,7 +106,7 @@ export default function MySessionsPage() {
       {sessions.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground mb-4">You haven't registered for any masterclasses yet.</p>
+            <p className="text-muted-foreground mb-4">You haven&apos;t registered for any masterclasses yet.</p>
             <Button onClick={() => window.location.href = "/dashboard/masterclasses"}>
               Browse Masterclasses
             </Button>
