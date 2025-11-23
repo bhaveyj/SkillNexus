@@ -41,10 +41,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Add enrollment count and check if user is registered
-    const masterclassesWithCount = masterclasses.map(mc => ({
+    const masterclassesWithCount = masterclasses.map((mc: any) => ({
       ...mc,
       enrollmentCount: mc.registrations.length,
-      isRegistered: currentUserId ? mc.registrations.some(reg => reg.userId === currentUserId) : false,
+      isRegistered: currentUserId ? mc.registrations.some((reg: any) => reg.userId === currentUserId) : false,
     }));
 
     return NextResponse.json({

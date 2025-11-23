@@ -36,7 +36,7 @@ export async function GET() {
     })
 
     // Map to the format needed by the frontend
-    const sessions = registrations.map((reg) => ({
+    const sessions = registrations.map((reg: any) => ({
       id: reg.masterclass.id,
       title: reg.masterclass.title,
       description: reg.masterclass.description,
