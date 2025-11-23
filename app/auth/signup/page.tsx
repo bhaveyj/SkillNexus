@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { LoaderTwo } from "@/components/ui/loader"
 
 export default function SignUp() {
   const [name, setName] = useState("")
@@ -13,6 +14,7 @@ export default function SignUp() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [oauthLoading, setOauthLoading] = useState<string | null>(null)
   const [error, setError] = useState("")
   const router = useRouter()
 
@@ -61,6 +63,7 @@ export default function SignUp() {
   }
 
   const handleOAuthSignIn = (provider: string) => {
+    setOauthLoading(provider)
     signIn(provider, { callbackUrl: "/dashboard" })
   }
 
@@ -149,7 +152,7 @@ export default function SignUp() {
               className="w-full"
               disabled={loading}
             >
-              {loading ? "Creating account..." : "Create Account"}
+              {loading ? <LoaderTwo /> : "Create Account"}
             </Button>
           </form>
 
@@ -166,14 +169,16 @@ export default function SignUp() {
             <Button
               variant="outline"
               onClick={() => handleOAuthSignIn("google")}
+              disabled={oauthLoading !== null}
             >
-              Google
+              {oauthLoading === "google" ? <LoaderTwo /> : "Google"}
             </Button>
             <Button
               variant="outline"
               onClick={() => handleOAuthSignIn("github")}
+              disabled={oauthLoading !== null}
             >
-              GitHub
+              {oauthLoading === "github" ? <LoaderTwo /> : "GitHub"}
             </Button>
           </div>
 

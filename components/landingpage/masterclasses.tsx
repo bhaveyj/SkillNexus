@@ -1,8 +1,9 @@
 "use client"
 
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card"
+import { LoaderTwo } from "@/components/ui/loader"
+import { useState, useEffect } from "react"
 
 const classes = [
   {
@@ -26,6 +27,26 @@ const classes = [
 ]
 
 export function Masterclasses() {
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Simulate loading masterclasses data
+    const timer = setTimeout(() => {
+      setLoading(false)
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (loading) {
+    return (
+      <section id="masterclasses" className="border-t border-border/60">
+        <div className="mx-auto max-w-6xl px-4 py-14 md:py-16">
+          <LoaderTwo />
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section id="masterclasses" className="border-t border-border/60">
       <div className="mx-auto max-w-6xl px-4 py-14 md:py-16">
