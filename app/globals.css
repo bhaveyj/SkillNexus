@@ -64,3 +64,9 @@ body {
 .text-primary-foreground {
   color: hsl(var(--primary-foreground)) !important;
 }
+
+/* Fix select dropdown option colors */
+select option {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}

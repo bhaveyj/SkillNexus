@@ -54,12 +54,47 @@ model User {
   
   accounts Account[]
   sessions Session[]
+  registrations MasterclassRegistration[]
+  instructedMasterclasses Masterclass[]
   
   // Add your custom user fields here
   bio           String?
   skills        String[]
   location      String?
   website       String?
+}
+
+model Masterclass {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?  @db.Text
+  instructorId    String
+  instructor      User     @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  instructorName  String
+  category        String
+  level           MasterclassLevel @default(INTERMEDIATE)
+  date            DateTime
+  time            String
+  duration        String
+  meetLink        String   // Google Meet link
+  maxStudents     Int?
+  avatar          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  registrations   MasterclassRegistration[]
+}
+
+model MasterclassRegistration {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  masterclassId   String
+  masterclass     Masterclass @relation(fields: [masterclassId], references: [id], onDelete: Cascade)
+  registeredAt    DateTime @default(now())
+  emailSent       Boolean  @default(false)
+  
+  @@unique([userId, masterclassId])
 }
 
 model VerificationToken {
@@ -75,4 +110,10 @@ enum UserRole {
   USER
   ADMIN
   INSTRUCTOR
+}
+
+enum MasterclassLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
 }
