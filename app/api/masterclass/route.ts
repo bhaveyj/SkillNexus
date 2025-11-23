@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import type { Masterclass, MasterclassRegistration, User } from '@prisma/client';
+
+type MasterclassWithRelations = Masterclass & {
+  registrations: MasterclassRegistration[];
+  instructor: Pick<User, 'id' | 'name' | 'image'> | null;
+};
 
 export async function GET(req: NextRequest) {
   try {
@@ -41,10 +47,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Add enrollment count and check if user is registered
-    const masterclassesWithCount = masterclasses.map((mc: any) => ({
+    const masterclassesWithCount = masterclasses.map((mc: MasterclassWithRelations) => ({
       ...mc,
       enrollmentCount: mc.registrations.length,
-      isRegistered: currentUserId ? mc.registrations.some((reg: any) => reg.userId === currentUserId) : false,
+      isRegistered: currentUserId ? mc.registrations.some((reg: MasterclassRegistration) => reg.userId === currentUserId) : false,
     }));
 
     return NextResponse.json({

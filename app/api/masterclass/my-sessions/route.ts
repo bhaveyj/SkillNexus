@@ -2,6 +2,11 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import type { Masterclass, MasterclassRegistration } from "@prisma/client"
+
+type RegistrationWithMasterclass = MasterclassRegistration & {
+  masterclass: Masterclass
+}
 
 export async function GET() {
   try {
@@ -36,7 +41,7 @@ export async function GET() {
     })
 
     // Map to the format needed by the frontend
-    const sessions = registrations.map((reg: any) => ({
+    const sessions = registrations.map((reg: RegistrationWithMasterclass) => ({
       id: reg.masterclass.id,
       title: reg.masterclass.title,
       description: reg.masterclass.description,

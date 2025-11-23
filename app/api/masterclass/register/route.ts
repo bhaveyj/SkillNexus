@@ -128,7 +128,7 @@ export async function POST(_req: NextRequest) {
 }
 
 // Get user's registrations
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
