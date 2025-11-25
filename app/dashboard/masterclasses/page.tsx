@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Toast } from "@/components/ui/toast"
 import { Loader } from "@/components/ui/loader"
+import { Input } from "@/components/ui/input"
 
 interface Masterclass {
   id: string
@@ -32,6 +33,7 @@ export default function MasterclassesPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [selectedCategory, setSelectedCategory] = useState("All")
+  const [searchQuery, setSearchQuery] = useState("")
   const [masterclasses, setMasterclasses] = useState<Masterclass[]>([])
   const [loading, setLoading] = useState(true)
   const [registering, setRegistering] = useState<string | null>(null)
@@ -126,6 +128,10 @@ export default function MasterclassesPage() {
     })
   }
 
+  const filteredMasterclasses = masterclasses.filter((mc) =>
+    mc.title.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   if (loading) {
     return (
       <div className="flex-1 overflow-auto">
@@ -153,7 +159,8 @@ export default function MasterclassesPage() {
       </div>
 
       <div className="p-8">
-        <div className="mb-8 flex flex-wrap gap-2">
+        <div className="mb-8 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex flex-wrap gap-2">
           {categories.map((category) => (
             <Button
               key={category}
@@ -165,15 +172,42 @@ export default function MasterclassesPage() {
               {category}
             </Button>
           ))}
+          </div>
+          <div className="relative w-80">
+            <Input
+              type="text"
+              placeholder="Search masterclasses by title..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pr-10"
+            />
+            <svg
+              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
         </div>
 
         {masterclasses.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No masterclasses available in this category.</p>
           </div>
+        ) : filteredMasterclasses.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No masterclasses found matching &quot;{searchQuery}&quot;.</p>
+          </div>
         ) : (
           <div className="space-y-3">
-            {masterclasses.map((mc) => (
+            {filteredMasterclasses.map((mc) => (
               <Card key={mc.id} className="hover:border-primary/50 hover:shadow-sm transition-all">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-6">
