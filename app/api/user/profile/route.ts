@@ -10,6 +10,12 @@ const updateProfileSchema = z.object({
   skills: z.array(z.string()).optional(),
   location: z.string().optional(),
   website: z.string().url().optional().or(z.literal("")),
+  socials: z.object({
+    github: z.string().optional(),
+    linkedin: z.string().optional(),
+    twitter: z.string().optional(),
+    gmail: z.string().email().optional().or(z.literal("")),
+  }).optional(),
 })
 
 export async function GET() {
@@ -36,6 +42,10 @@ export async function GET() {
         website: true,
         role: true,
         createdAt: true,
+        github: true,
+        linkedin: true,
+        twitter: true,
+        gmail: true,
       }
     })
 
@@ -70,9 +80,21 @@ export async function PUT(req: NextRequest) {
     const body = await req.json()
     const data = updateProfileSchema.parse(body)
 
+    // Extract socials if provided and flatten them
+    const { socials, ...otherData } = data
+    const updateData = {
+      ...otherData,
+      ...(socials && {
+        github: socials.github,
+        linkedin: socials.linkedin,
+        twitter: socials.twitter,
+        gmail: socials.gmail,
+      })
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: session.user.id },
-      data,
+      data: updateData,
       select: {
         id: true,
         name: true,
@@ -84,6 +106,10 @@ export async function PUT(req: NextRequest) {
         website: true,
         role: true,
         updatedAt: true,
+        github: true,
+        linkedin: true,
+        twitter: true,
+        gmail: true,
       }
     })
 
@@ -102,4 +128,8 @@ export async function PUT(req: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+export async function PATCH(req: NextRequest) {
+  return PUT(req)
 }
