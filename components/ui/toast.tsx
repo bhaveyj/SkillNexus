@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { CheckCircle, XCircle, AlertCircle, Info, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -51,3 +51,24 @@ export function Toast({ message, type = "info", onClose }: ToastProps) {
     </div>
   )
 }
+
+interface ToastData {
+  title: string
+  description?: string
+  variant?: "default" | "destructive"
+}
+
+export function useToast() {
+  const [toasts, setToasts] = useState<Array<ToastData & { id: number }>>([])
+
+  const toast = ({ title, description, variant = "default" }: ToastData) => {
+    const id = Date.now()
+    setToasts((prev) => [...prev, { id, title, description, variant }])
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 5000)
+  }
+
+  return { toast, toasts }
+}
+

@@ -23,6 +23,15 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   )
 }
 
+interface DialogTriggerProps {
+  asChild?: boolean
+  children: React.ReactNode
+}
+
+export function DialogTrigger({ children }: DialogTriggerProps) {
+  return <>{children}</>
+}
+
 interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode
 }
