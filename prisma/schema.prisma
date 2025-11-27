@@ -56,6 +56,10 @@ model User {
   sessions Session[]
   registrations MasterclassRegistration[]
   instructedMasterclasses Masterclass[]
+  offers    Offer[]
+  requests  Request[]
+  sentExchangeRequests     ExchangeRequest[] @relation("SentExchangeRequests")
+  receivedExchangeRequests ExchangeRequest[] @relation("ReceivedExchangeRequests")
   
   // Add your custom user fields here
   bio           String?
@@ -111,6 +115,61 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+// Skill Swap Models
+model Skill {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  category  SkillCategory
+  createdAt DateTime @default(now())
+  
+  offers    Offer[]
+  requests  Request[]
+  senderExchangeRequests   ExchangeRequest[] @relation("SenderSkills")
+  receiverExchangeRequests ExchangeRequest[] @relation("ReceiverSkills")
+}
+
+model Offer {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, skillId])
+}
+
+model Request {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, skillId])
+}
+
+model ExchangeRequest {
+  id              String   @id @default(cuid())
+  senderId        String
+  sender          User     @relation("SentExchangeRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId      String
+  receiver        User     @relation("ReceivedExchangeRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  senderSkillId   String
+  senderSkill     Skill    @relation("SenderSkills", fields: [senderSkillId], references: [id], onDelete: Cascade)
+  receiverSkillId String
+  receiverSkill   Skill    @relation("ReceiverSkills", fields: [receiverSkillId], references: [id], onDelete: Cascade)
+  status          ExchangeStatus @default(PENDING)
+  message         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([senderId, receiverId, senderSkillId, receiverSkillId])
+  @@index([receiverId, status])
+  @@index([senderId, status])
+}
+
 // Custom enums
 enum UserRole {
   USER
@@ -122,4 +181,29 @@ enum MasterclassLevel {
   BEGINNER
   INTERMEDIATE
   ADVANCED
+}
+
+enum SkillCategory {
+  DEVOPS
+  CLOUD
+  WEB_DEVELOPMENT
+  MOBILE
+  DATA_SCIENCE
+  UI_UX
+  BACKEND
+  FRONTEND
+  DATABASE
+  AI_ML
+  CYBERSECURITY
+  BLOCKCHAIN
+  GAME_DEVELOPMENT
+  TESTING
+  OTHER
+}
+
+enum ExchangeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
 }
