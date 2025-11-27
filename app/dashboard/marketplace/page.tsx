@@ -89,7 +89,7 @@ interface ExchangeRequest {
 
 export default function MarketplacePage() {
   const { data: session } = useSession()
-  const { toast } = useToast()
+  const { toast, toasts } = useToast()
   const [activeTab, setActiveTab] = useState<"browse" | "matches" | "my-skills" | "requests">("browse")
   const [skills, setSkills] = useState<Skill[]>([])
   const [filteredSkills, setFilteredSkills] = useState<Skill[]>([])
@@ -105,6 +105,12 @@ export default function MarketplacePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL")
   const [browseCategory, setBrowseCategory] = useState<string>("ALL")
   const [isAddOfferOpen, setIsAddOfferOpen] = useState(false)
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([])
+  const [requestedUsers, setRequestedUsers] = useState<Set<string>>(new Set())
+  const [isProposeOpen, setIsProposeOpen] = useState(false)
+  const [proposeTarget, setProposeTarget] = useState<(UserOffer & { skills: Skill[] }) | null>(null)
+  const [proposeMySkill, setProposeMySkill] = useState<string>("")
+  const [proposeTheirSkill, setProposeTheirSkill] = useState<string>("")
 
   const categories = ["ALL", "DEVOPS", "CLOUD", "WEB_DEVELOPMENT", "BACKEND", "FRONTEND", "MOBILE", "DATABASE", "DATA_SCIENCE", "AI_ML", "UI_UX"]
 
@@ -150,6 +156,12 @@ export default function MarketplacePage() {
       if (exchangeRequestsData.sent) setSentRequests(exchangeRequestsData.sent)
       if (exchangeRequestsData.received) setReceivedRequests(exchangeRequestsData.received.filter((r: ExchangeRequest) => r.status === "PENDING"))
       
+      // Track users we've already sent requests to
+      if (exchangeRequestsData.sent) {
+        const requestedUserIds = new Set<string>(exchangeRequestsData.sent.map((r: ExchangeRequest) => r.receiverId))
+        setRequestedUsers(requestedUserIds)
+      }
+      
       // Combine accepted requests from both sent and received
       if (exchangeRequestsData.sent || exchangeRequestsData.received) {
         const accepted = [
@@ -188,6 +200,9 @@ export default function MarketplacePage() {
   const filterOffers = () => {
     let filtered = allOffers
 
+    // Remove logged-in user's offers
+    filtered = filtered.filter((offer) => offer.userId !== session?.user?.id)
+
     if (browseCategory !== "ALL") {
       filtered = filtered.filter((offer) => offer.skill.category === browseCategory)
     }
@@ -199,40 +214,85 @@ export default function MarketplacePage() {
       )
     }
 
-    setFilteredOffers(filtered)
+    // Group offers by user to avoid duplicate user cards
+    const groupedByUser = filtered.reduce((acc, offer) => {
+      const userId = offer.userId
+      if (!acc[userId]) {
+        acc[userId] = {
+          ...offer,
+          skills: [offer.skill],
+        }
+      } else {
+        acc[userId].skills.push(offer.skill)
+      }
+      return acc
+    }, {} as Record<string, UserOffer & { skills: Skill[] }>)
+
+    // Sort by matching status - matched users first
+    const sorted = Object.values(groupedByUser).sort((a, b) => {
+      const aCanExchange = session?.user?.id !== a.userId && 
+        (a.userRequests?.some((req: Request) => 
+          myOffers.some(myOffer => myOffer.skill.id === req.skill.id)
+        ) || a.userRequests?.length === 0)
+      const bCanExchange = session?.user?.id !== b.userId && 
+        (b.userRequests?.some((req: Request) => 
+          myOffers.some(myOffer => myOffer.skill.id === req.skill.id)
+        ) || b.userRequests?.length === 0)
+      
+      // Matched users first
+      if (aCanExchange && !bCanExchange) return -1
+      if (!aCanExchange && bCanExchange) return 1
+      return 0
+    })
+
+    setFilteredOffers(sorted as UserOffer[])
   }
 
-  const addOffer = async (skillId: string) => {
-    try {
-      const res = await fetch("/api/offers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skillId }),
+  const addMultipleOffers = async () => {
+    if (selectedSkills.length === 0) {
+      toast({
+        title: "No skills selected",
+        description: "Please select at least one skill to add",
+        variant: "destructive",
       })
+      return
+    }
 
-      const data = await res.json()
+    try {
+      const promises = selectedSkills.map(skillId =>
+        fetch("/api/offers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ skillId }),
+        })
+      )
 
-      if (data.success) {
-        toast({
-          title: "Success",
-          description: "Skill added to your offerings",
-        })
-        fetchData()
-        setIsAddOfferOpen(false)
-      } else {
-        toast({
-          title: "Error",
-          description: data.error,
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
+      const results = await Promise.all(promises)
+      const successCount = results.filter(r => r.ok).length
+
+      toast({
+        title: "Success",
+        description: `${successCount} skill${successCount !== 1 ? 's' : ''} added to your offerings`,
+      })
+      
+      setSelectedSkills([])
+      setIsAddOfferOpen(false)
+      fetchData()
+    } catch {
       toast({
         title: "Error",
-        description: "Failed to add skill offer",
+        description: "Failed to add skills",
         variant: "destructive",
       })
     }
+  }
+
+  const toggleSkillSelection = (skillId: string) => {
+    setSelectedSkills(prev => 
+      prev.includes(skillId) 
+        ? prev.filter(id => id !== skillId)
+        : [...prev, skillId]
+    )
   }
 
   const removeOffer = async (offerId: string) => {
@@ -259,7 +319,13 @@ export default function MarketplacePage() {
     }
   }
 
-  const sendExchangeRequest = async (receiverId: string, senderSkillId: string, receiverSkillId: string) => {
+  const sendExchangeRequest = async (receiverId: string, senderSkillId: string, receiverSkillId: string, event?: React.MouseEvent) => {
+    // Prevent any default behavior or propagation
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+
     try {
       const res = await fetch("/api/exchange-requests", {
         method: "POST",
@@ -274,11 +340,21 @@ export default function MarketplacePage() {
       const data = await res.json()
 
       if (res.ok) {
+        // Add user to requested set immediately
+        setRequestedUsers(prev => new Set([...prev, receiverId]))
+        
         toast({
           title: "Request Sent! 🎉",
-          description: "Your exchange request has been sent",
+          description: "Your exchange request has been sent successfully",
         })
-        fetchData()
+        
+        // Update sent requests in background
+        const exchangeRequestsRes = await fetch("/api/exchange-requests")
+        const exchangeRequestsData = await exchangeRequestsRes.json()
+        
+        if (exchangeRequestsData.sent) {
+          setSentRequests(exchangeRequestsData.sent)
+        }
       } else {
         toast({
           title: "Error",
@@ -286,10 +362,67 @@ export default function MarketplacePage() {
           variant: "destructive",
         })
       }
-    } catch {
+    } catch (error) {
+      console.error('Exchange request error:', error)
       toast({
         title: "Error",
         description: "Failed to send exchange request",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleProposeExchange = async () => {
+    if (!proposeMySkill || !proposeTheirSkill || !proposeTarget) {
+      toast({
+        title: "Error",
+        description: "Please select both skills",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const res = await fetch("/api/exchange-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          receiverId: proposeTarget.userId,
+          senderSkillId: proposeMySkill,
+          receiverSkillId: proposeTheirSkill,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({
+          title: "Exchange Proposed! 🎉",
+          description: "Your exchange proposal has been sent",
+        })
+        setRequestedUsers(prev => new Set(prev).add(proposeTarget.userId))
+        setIsProposeOpen(false)
+        setProposeMySkill("")
+        setProposeTheirSkill("")
+        setProposeTarget(null)
+
+        // Update sent requests
+        const exchangeRes = await fetch("/api/exchange-requests")
+        const exchangeData = await exchangeRes.json()
+        if (exchangeData.sent) {
+          setSentRequests(exchangeData.sent)
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to propose exchange",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to send exchange proposal",
         variant: "destructive",
       })
     }
@@ -356,6 +489,7 @@ export default function MarketplacePage() {
               variant={activeTab === "browse" ? "default" : "outline"}
               onClick={() => setActiveTab("browse")}
               size="sm"
+              className="cursor-pointer"
             >
               <Search className="w-4 h-4 mr-2" />
               Browse Skills
@@ -364,6 +498,7 @@ export default function MarketplacePage() {
               variant={activeTab === "matches" ? "default" : "outline"}
               onClick={() => setActiveTab("matches")}
               size="sm"
+              className="cursor-pointer"
             >
               <Users className="w-4 h-4 mr-2" />
               My Matches ({acceptedMatches.length})
@@ -372,7 +507,7 @@ export default function MarketplacePage() {
               variant={activeTab === "requests" ? "default" : "outline"}
               onClick={() => setActiveTab("requests")}
               size="sm"
-              className="relative"
+              className="relative cursor-pointer"
             >
               <ArrowLeftRight className="w-4 h-4 mr-2" />
               Requests
@@ -386,6 +521,7 @@ export default function MarketplacePage() {
               variant={activeTab === "my-skills" ? "default" : "outline"}
               onClick={() => setActiveTab("my-skills")}
               size="sm"
+              className="cursor-pointer"
             >
               <BookOpen className="w-4 h-4 mr-2" />
               My Skills
@@ -415,7 +551,7 @@ export default function MarketplacePage() {
                     variant={browseCategory === cat ? "default" : "outline"}
                     onClick={() => setBrowseCategory(cat)}
                     size="sm"
-                    className="text-xs"
+                    className="text-xs cursor-pointer"
                   >
                     {formatCategory(cat)}
                   </Button>
@@ -431,15 +567,17 @@ export default function MarketplacePage() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredOffers.map((offer) => {
+                {filteredOffers.map((offer: UserOffer & { skills?: Skill[] }) => {
                   const canExchange = session?.user?.id !== offer.userId && 
-                    offer.userRequests?.some(req => 
+                    (offer.userRequests?.some((req: Request) => 
                       myOffers.some(myOffer => myOffer.skill.id === req.skill.id)
-                    )
+                    ) || offer.userRequests?.length === 0) // Allow exchange even if they have no requests
                   const isMe = session?.user?.id === offer.userId
+                  const hasRequested = requestedUsers.has(offer.userId)
+                  const skills = offer.skills || [offer.skill]
                   
                   return (
-                    <Card key={offer.id} className="hover:border-primary/50 hover:shadow-sm transition-all">
+                    <Card key={offer.userId} className="hover:border-primary/50 hover:shadow-sm transition-all">
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-3">
@@ -471,15 +609,17 @@ export default function MarketplacePage() {
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-xs text-muted-foreground">Can teach:</span>
                           </div>
-                          <Badge
-                            variant="outline"
-                            className={`px-3 py-1.5 ${categoryColors[offer.skill.category] || ""}`}
-                          >
-                            {offer.skill.name}
-                          </Badge>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {formatCategory(offer.skill.category)}
-                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {skills.map((skill: Skill) => (
+                              <Badge
+                                key={skill.id}
+                                variant="outline"
+                                className={`px-2 py-1 text-xs ${categoryColors[skill.category] || ""}`}
+                              >
+                                {skill.name}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
 
                         {offer.userRequests && offer.userRequests.length > 0 && (
@@ -488,7 +628,7 @@ export default function MarketplacePage() {
                               <span className="text-xs text-muted-foreground">Wants to learn:</span>
                             </div>
                             <div className="flex flex-wrap gap-1">
-                              {offer.userRequests.slice(0, 3).map((req) => {
+                              {offer.userRequests.slice(0, 3).map((req: Request) => {
                                 const iCanTeach = myOffers.some(myOffer => myOffer.skill.id === req.skill.id)
                                 return (
                                   <Badge
@@ -509,31 +649,55 @@ export default function MarketplacePage() {
                             </div>
                           </div>
                         )}
-
-                        {!isMe && canExchange && (
+                        {!isMe && canExchange && !hasRequested && (
                           <Button 
                             size="sm" 
-                            className="w-full h-8 text-xs"
-                            onClick={() => {
+                            className="w-full h-8 text-xs cursor-pointer"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              
                               // Find the matching skill from their requests that we offer
-                              const matchingRequest = offer.userRequests?.find(req => 
+                              const matchingRequest = offer.userRequests?.find((req: Request) => 
                                 myOffers.some(myOffer => myOffer.skill.id === req.skill.id)
                               )
-                              const myMatchingOffer = myOffers.find(myOffer => 
+                              const myMatchingOffer = matchingRequest ? myOffers.find(myOffer => 
                                 myOffer.skill.id === matchingRequest?.skill.id
-                              )
+                              ) : myOffers[0] // If they have no requests, use any of our offers
                               
-                              if (matchingRequest && myMatchingOffer) {
-                                sendExchangeRequest(offer.userId, myMatchingOffer.skill.id, offer.skill.id)
+                              // Pick the first skill they offer for exchange
+                              const theirSkill = skills[0]
+                              
+                              if (myMatchingOffer) {
+                                sendExchangeRequest(offer.userId, myMatchingOffer.skill.id, theirSkill.id, e)
                               }
                             }}
                           >
                             Request Exchange
                           </Button>
                         )}
-                        {!isMe && !canExchange && (
-                          <Button size="sm" variant="outline" className="w-full h-8 text-xs" disabled>
-                            No Match Available
+                        {!isMe && canExchange && hasRequested && (
+                          <Button size="sm" className="w-full h-8 text-xs bg-purple-500 hover:bg-purple-500 text-white" disabled>
+                            ✓ Requested
+                          </Button>
+                        )}
+                        {!isMe && !canExchange && !hasRequested && (
+                          <Button 
+                            size="sm" 
+                            className="w-full h-8 text-xs cursor-pointer"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              setProposeTarget({ ...offer, skills: offer.skills || [offer.skill] })
+                              setIsProposeOpen(true)
+                            }}
+                          >
+                            Propose Exchange
+                          </Button>
+                        )}
+                        {!isMe && !canExchange && hasRequested && (
+                          <Button size="sm" className="w-full h-8 text-xs bg-purple-500 hover:bg-purple-500 text-white" disabled>
+                            ✓ Requested
                           </Button>
                         )}
                       </CardContent>
@@ -641,13 +805,29 @@ export default function MarketplacePage() {
                   </Button>
                 </div>
 
-                <Dialog open={isAddOfferOpen} onOpenChange={setIsAddOfferOpen}>
+                <Dialog open={isAddOfferOpen} onOpenChange={(open) => {
+                  setIsAddOfferOpen(open)
+                  if (!open) setSelectedSkills([])
+                }}>
                   <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>Add a Skill You Can Teach</DialogTitle>
-                        <DialogDescription>
-                          Select skills you can teach from our catalog
-                        </DialogDescription>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <DialogTitle>Add Skills You Can Teach</DialogTitle>
+                            <DialogDescription>
+                              Select multiple skills you can teach from our catalog
+                            </DialogDescription>
+                          </div>
+                          {selectedSkills.length > 0 && (
+                            <Button 
+                              onClick={addMultipleOffers}
+                              size="sm"
+                              className="ml-4"
+                            >
+                              Add {selectedSkills.length} Skill{selectedSkills.length !== 1 ? 's' : ''}
+                            </Button>
+                          )}
+                        </div>
                       </DialogHeader>
 
                       <div className="space-y-4 mt-4">
@@ -678,16 +858,23 @@ export default function MarketplacePage() {
                         <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
                           {filteredSkills.map((skill) => {
                             const alreadyOffered = myOffers.some((o) => o.skill.id === skill.id)
+                            const isSelected = selectedSkills.includes(skill.id)
                             return (
                               <Button
                                 key={skill.id}
-                                variant="outline"
+                                variant={isSelected ? "default" : "outline"}
                                 className="justify-start h-auto py-2 px-3"
-                                onClick={() => !alreadyOffered && addOffer(skill.id)}
+                                onClick={() => !alreadyOffered && toggleSkillSelection(skill.id)}
                                 disabled={alreadyOffered}
                               >
                                 <div className="flex items-center gap-2 w-full">
-                                  {alreadyOffered && <Check className="w-4 h-4 text-green-500 flex-shrink-0" />}
+                                  {alreadyOffered ? (
+                                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                  ) : isSelected ? (
+                                    <Check className="w-4 h-4 flex-shrink-0" />
+                                  ) : (
+                                    <div className="w-4 h-4 flex-shrink-0" />
+                                  )}
                                   <div className="flex-1 text-left min-w-0">
                                     <p className="text-sm font-medium truncate">{skill.name}</p>
                                     <p className="text-xs text-muted-foreground truncate">
@@ -868,6 +1055,120 @@ export default function MarketplacePage() {
           </div>
         ) : null}
       </div>
+
+      {/* Toast notifications */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`rounded-lg border px-4 py-3 shadow-lg ${
+              t.variant === "destructive"
+                ? "bg-red-50 border-red-200 text-red-800"
+                : "bg-green-50 border-green-200 text-green-800"
+            }`}
+          >
+            <p className="text-sm font-semibold">{t.title}</p>
+            {t.description && <p className="text-xs mt-1">{t.description}</p>}
+          </div>
+        ))}
+      </div>
+
+      {/* Propose Exchange Dialog */}
+      <Dialog open={isProposeOpen} onOpenChange={setIsProposeOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Propose Skill Exchange</DialogTitle>
+            <DialogDescription>
+              Choose a skill you can teach and optionally select a skill you want to learn from {proposeTarget?.user?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Their Info */}
+            <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+              <img
+                src={proposeTarget?.user?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${proposeTarget?.user?.name}`}
+                alt={proposeTarget?.user?.name || 'User'}
+                className="w-12 h-12 rounded-lg"
+              />
+              <div>
+                <h4 className="font-semibold">{proposeTarget?.user?.name}</h4>
+                <p className="text-sm text-muted-foreground">{proposeTarget?.user?.email}</p>
+              </div>
+            </div>
+
+            {/* Select My Skill */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">I can teach:</label>
+              <div className="grid grid-cols-2 gap-2">
+                {myOffers.map((offer) => (
+                  <button
+                    key={offer.id}
+                    onClick={() => setProposeMySkill(offer.skill.id)}
+                    className={`p-3 text-left rounded-lg border transition-all ${
+                      proposeMySkill === offer.skill.id
+                        ? "border-primary bg-primary text-primary-foreground shadow-md"
+                        : "border-border hover:border-primary/50 hover:bg-accent"
+                    }`}
+                  >
+                    <p className="text-sm font-medium">{offer.skill.name}</p>
+                    <Badge variant={proposeMySkill === offer.skill.id ? "secondary" : "outline"} className={`text-xs mt-1 ${proposeMySkill === offer.skill.id ? "" : categoryColors[offer.skill.category] || ""}`}>
+                      {formatCategory(offer.skill.category)}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+              {myOffers.length === 0 && (
+                <p className="text-sm text-muted-foreground">You need to add skills you can teach first</p>
+              )}
+            </div>
+
+            {/* Select Their Skill */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">I want to learn:</label>
+              <div className="grid grid-cols-2 gap-2">
+                {proposeTarget?.skills?.map((skill: Skill) => (
+                  <button
+                    key={skill.id}
+                    onClick={() => setProposeTheirSkill(skill.id)}
+                    className={`p-3 text-left rounded-lg border transition-all ${
+                      proposeTheirSkill === skill.id
+                        ? "border-primary bg-primary text-primary-foreground shadow-md"
+                        : "border-border hover:border-primary/50 hover:bg-accent"
+                    }`}
+                  >
+                    <p className="text-sm font-medium">{skill.name}</p>
+                    <Badge variant={proposeTheirSkill === skill.id ? "secondary" : "outline"} className={`text-xs mt-1 ${proposeTheirSkill === skill.id ? "" : categoryColors[skill.category] || ""}`}>
+                      {formatCategory(skill.category)}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={handleProposeExchange}
+                disabled={!proposeMySkill || !proposeTheirSkill}
+                className="flex-1"
+              >
+                Send Proposal
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsProposeOpen(false)
+                  setProposeMySkill("")
+                  setProposeTheirSkill("")
+                  setProposeTarget(null)
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
