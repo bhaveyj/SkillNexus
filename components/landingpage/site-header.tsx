@@ -8,6 +8,17 @@ import { cn } from "@/lib/utils"
 export function SiteHeader() {
   const { data: session, status } = useSession()
 
+  const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
+    e.preventDefault()
+    const element = document.getElementById(targetId)
+    if (element) {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      })
+    }
+  }
+
   return (
     <header className="w-full border-b border-border/60 bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
@@ -20,19 +31,22 @@ export function SiteHeader() {
         <nav className={cn("hidden md:flex items-center gap-6 text-sm")}>
           <a
             href="#how"
-            className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 ring-ring rounded"
+            onClick={(e) => handleSmoothScroll(e, "how")}
+            className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 ring-ring rounded cursor-pointer"
           >
             How it works
           </a>
           <a
             href="#masterclasses"
-            className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 ring-ring rounded"
+            onClick={(e) => handleSmoothScroll(e, "masterclasses")}
+            className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 ring-ring rounded cursor-pointer"
           >
             Masterclasses
           </a>
           <a
             href="#faq"
-            className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 ring-ring rounded"
+            onClick={(e) => handleSmoothScroll(e, "faq")}
+            className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 ring-ring rounded cursor-pointer"
           >
             FAQs
           </a>

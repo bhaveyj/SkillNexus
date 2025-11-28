@@ -6,6 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
+interface Skill {
+  id: string
+  name: string
+  category: string
+}
+
+interface Offer {
+  id: string
+  skillId: string
+  skill: Skill
+}
+
 export default function ProfilePage() {
   const { data: session } = useSession()
   const [isEditing, setIsEditing] = useState(false)
@@ -17,10 +29,17 @@ export default function ProfilePage() {
     twitter: "",
     gmail: ""
   })
+  const [userOffers, setUserOffers] = useState<Offer[]>([])
+  const [allSkills, setAllSkills] = useState<Skill[]>([])
+  const [isLoadingSkills, setIsLoadingSkills] = useState(true)
+  const [skillSearch, setSkillSearch] = useState("")
+  const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false)
 
   useEffect(() => {
     if (session?.user?.email) {
       fetchUserProfile()
+      fetchUserOffers()
+      fetchAllSkills()
     }
   }, [session])
 
@@ -39,6 +58,67 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error("Failed to fetch profile:", error)
+    }
+  }
+
+  const fetchUserOffers = async () => {
+    try {
+      const response = await fetch("/api/offers")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setUserOffers(data.data)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch user offers:", error)
+    } finally {
+      setIsLoadingSkills(false)
+    }
+  }
+
+  const fetchAllSkills = async () => {
+    try {
+      const response = await fetch("/api/skills")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setAllSkills(data.data)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch skills:", error)
+    }
+  }
+
+  const addSkill = async (skillId: string) => {
+    try {
+      const response = await fetch("/api/offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skillId })
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setUserOffers([...userOffers, data.data])
+        }
+      }
+    } catch (error) {
+      console.error("Failed to add skill:", error)
+    }
+  }
+
+  const removeSkill = async (offerId: string) => {
+    try {
+      const response = await fetch(`/api/offers?offerId=${offerId}`, {
+        method: "DELETE"
+      })
+      if (response.ok) {
+        setUserOffers(userOffers.filter(offer => offer.id !== offerId))
+      }
+    } catch (error) {
+      console.error("Failed to remove skill:", error)
     }
   }
 
@@ -72,18 +152,20 @@ export default function ProfilePage() {
     }
   }
 
-  const allSkills = [
-    "Python",
-    "Machine Learning",
-    "Data Science",
-    "React",
-    "Node.js",
-    "Web Development",
-    "Cloud Architecture",
-    "DevOps",
-  ]
+  // Get skill IDs that user already has
+  const userSkillIds = userOffers.map(offer => offer.skillId)
+  
+  // Filter available skills (skills user doesn't have yet) and apply search filter
+  const availableSkills = allSkills.filter(skill => !userSkillIds.includes(skill.id))
+  const filteredSkills = availableSkills.filter(skill => 
+    skill.name.toLowerCase().includes(skillSearch.toLowerCase())
+  )
 
-  const userSkills = ["Python", "Machine Learning", "React"]
+  const handleAddSkill = async (skillId: string) => {
+    await addSkill(skillId)
+    setSkillSearch("")
+    setIsSkillDropdownOpen(false)
+  }
 
   return (
     <div className="p-8 max-w-7xl">
@@ -152,25 +234,81 @@ export default function ProfilePage() {
             <div className="space-y-4">
               <div>
                 <h3 className="font-medium mb-3">My Skills</h3>
-                <div className="flex flex-wrap gap-2">
-                  {userSkills.map((skill) => (
-                    <Badge key={skill} variant="secondary">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
+                {isLoadingSkills ? (
+                  <p className="text-muted-foreground text-sm">Loading skills...</p>
+                ) : userOffers.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {userOffers.map((offer) => (
+                      <Badge 
+                        key={offer.id} 
+                        className="cursor-pointer bg-blue-500/20 text-blue-500 border border-blue-500/30 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors group"
+                        onClick={() => removeSkill(offer.id)}
+                      >
+                        {offer.skill.name}
+                        <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">×</span>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">No skills added yet. Add some below!</p>
+                )}
               </div>
 
               <div>
                 <h3 className="font-medium mb-3">Add More Skills</h3>
-                <div className="flex flex-wrap gap-2">
-                  {allSkills
-                    .filter((s) => !userSkills.includes(s))
-                    .map((skill) => (
-                      <Button key={skill} variant="outline" size="sm">
-                        + {skill}
-                      </Button>
-                    ))}
+                <div className="relative z-50">
+                  <div className="relative">
+                    <svg 
+                      className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Search skills to add..."
+                      value={skillSearch}
+                      onChange={(e) => {
+                        setSkillSearch(e.target.value)
+                        setIsSkillDropdownOpen(true)
+                      }}
+                      onFocus={() => setIsSkillDropdownOpen(true)}
+                      className="w-full pl-10 pr-4 py-2 bg-input border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  
+                  {isSkillDropdownOpen && skillSearch && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setIsSkillDropdownOpen(false)}
+                      />
+                      <div className="absolute z-50 w-full mt-1 bg-zinc-900 border border-border rounded-md shadow-xl max-h-60 overflow-auto">
+                        {filteredSkills.length > 0 ? (
+                          filteredSkills.slice(0, 10).map((skill) => (
+                            <button
+                              key={skill.id}
+                              onClick={() => handleAddSkill(skill.id)}
+                              className="w-full px-4 py-2 text-left hover:bg-accent transition-colors flex items-center gap-2 cursor-pointer"
+                            >
+                              <span className="text-primary">+</span>
+                              <span>{skill.name}</span>
+                              <span className="text-xs text-muted-foreground ml-auto">{skill.category.replace(/_/g, ' ')}</span>
+                            </button>
+                          ))
+                        ) : (
+                          <p className="px-4 py-2 text-muted-foreground text-sm">No matching skills found</p>
+                        )}
+                        {filteredSkills.length > 10 && (
+                          <p className="px-4 py-2 text-muted-foreground text-xs border-t border-border">
+                            +{filteredSkills.length - 10} more skills. Keep typing to narrow down.
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Loader } from "@/components/ui/loader"
 import { useToast } from "@/components/ui/toast"
-import { Search, Plus, X, ArrowLeftRight, Users, BookOpen, Check } from "lucide-react"
+import { Search, Plus, X, ArrowLeftRight, Users, BookOpen, Check, User } from "lucide-react"
 
 interface Skill {
   id: string
@@ -111,6 +111,19 @@ export default function MarketplacePage() {
   const [proposeTarget, setProposeTarget] = useState<(UserOffer & { skills: Skill[] }) | null>(null)
   const [proposeMySkill, setProposeMySkill] = useState<string>("")
   const [proposeTheirSkill, setProposeTheirSkill] = useState<string>("")
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [viewingProfile, setViewingProfile] = useState<{
+    id: string
+    name: string | null
+    email: string
+    image: string | null
+    bio: string | null
+    github: string | null
+    linkedin: string | null
+    twitter: string | null
+    gmail: string | null
+  } | null>(null)
+  const [loadingProfile, setLoadingProfile] = useState(false)
 
   const categories = ["ALL", "DEVOPS", "CLOUD", "WEB_DEVELOPMENT", "BACKEND", "FRONTEND", "MOBILE", "DATABASE", "DATA_SCIENCE", "AI_ML", "UI_UX"]
 
@@ -465,6 +478,32 @@ export default function MarketplacePage() {
     }
   }
 
+  const fetchUserProfile = async (userId: string) => {
+    setLoadingProfile(true)
+    try {
+      const res = await fetch(`/api/user/${userId}`)
+      const data = await res.json()
+      if (res.ok) {
+        setViewingProfile(data)
+        setIsProfileOpen(true)
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load profile",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to load profile",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingProfile(false)
+    }
+  }
+
   const formatCategory = (category: string) => {
     return category.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase())
   }
@@ -656,21 +695,8 @@ export default function MarketplacePage() {
                             onClick={(e) => {
                               e.preventDefault()
                               e.stopPropagation()
-                              
-                              // Find the matching skill from their requests that we offer
-                              const matchingRequest = offer.userRequests?.find((req: Request) => 
-                                myOffers.some(myOffer => myOffer.skill.id === req.skill.id)
-                              )
-                              const myMatchingOffer = matchingRequest ? myOffers.find(myOffer => 
-                                myOffer.skill.id === matchingRequest?.skill.id
-                              ) : myOffers[0] // If they have no requests, use any of our offers
-                              
-                              // Pick the first skill they offer for exchange
-                              const theirSkill = skills[0]
-                              
-                              if (myMatchingOffer) {
-                                sendExchangeRequest(offer.userId, myMatchingOffer.skill.id, theirSkill.id, e)
-                              }
+                              setProposeTarget({ ...offer, skills: offer.skills || [offer.skill] })
+                              setIsProposeOpen(true)
                             }}
                           >
                             Request Exchange
@@ -779,9 +805,21 @@ export default function MarketplacePage() {
                           Matched on {new Date(match.createdAt).toLocaleDateString()}
                         </div>
 
-                        <Button size="sm" className="w-full h-8 text-xs">
-                          Contact for Exchange
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="flex-1 h-8 text-xs cursor-pointer"
+                            onClick={() => otherPerson && fetchUserProfile(otherPerson.id)}
+                            disabled={loadingProfile || !otherPerson}
+                          >
+                            <User className="w-3 h-3 mr-1" />
+                            View Profile
+                          </Button>
+                          <Button size="sm" className="flex-1 h-8 text-xs cursor-pointer">
+                            Contact
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   )
@@ -1075,7 +1113,7 @@ export default function MarketplacePage() {
 
       {/* Propose Exchange Dialog */}
       <Dialog open={isProposeOpen} onOpenChange={setIsProposeOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Propose Skill Exchange</DialogTitle>
             <DialogDescription>
@@ -1100,12 +1138,12 @@ export default function MarketplacePage() {
             {/* Select My Skill */}
             <div className="space-y-2">
               <label className="text-sm font-medium">I can teach:</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-1">
                 {myOffers.map((offer) => (
                   <button
                     key={offer.id}
                     onClick={() => setProposeMySkill(offer.skill.id)}
-                    className={`p-3 text-left rounded-lg border transition-all ${
+                    className={`p-3 text-left rounded-lg border transition-all cursor-pointer ${
                       proposeMySkill === offer.skill.id
                         ? "border-primary bg-primary text-primary-foreground shadow-md"
                         : "border-border hover:border-primary/50 hover:bg-accent"
@@ -1126,12 +1164,12 @@ export default function MarketplacePage() {
             {/* Select Their Skill */}
             <div className="space-y-2">
               <label className="text-sm font-medium">I want to learn:</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-1">
                 {proposeTarget?.skills?.map((skill: Skill) => (
                   <button
                     key={skill.id}
                     onClick={() => setProposeTheirSkill(skill.id)}
-                    className={`p-3 text-left rounded-lg border transition-all ${
+                    className={`p-3 text-left rounded-lg border transition-all cursor-pointer ${
                       proposeTheirSkill === skill.id
                         ? "border-primary bg-primary text-primary-foreground shadow-md"
                         : "border-border hover:border-primary/50 hover:bg-accent"
@@ -1150,7 +1188,7 @@ export default function MarketplacePage() {
               <Button
                 onClick={handleProposeExchange}
                 disabled={!proposeMySkill || !proposeTheirSkill}
-                className="flex-1"
+                className="flex-1 cursor-pointer"
               >
                 Send Proposal
               </Button>
@@ -1162,11 +1200,119 @@ export default function MarketplacePage() {
                   setProposeTheirSkill("")
                   setProposeTarget(null)
                 }}
+                className="cursor-pointer"
               >
                 Cancel
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Profile Dialog */}
+      <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>User Profile</DialogTitle>
+            <DialogDescription>
+              Connect with this user through their social links
+            </DialogDescription>
+          </DialogHeader>
+          {viewingProfile && (
+            <div className="space-y-6">
+              {/* User Info */}
+              <div className="flex items-center gap-4">
+                {viewingProfile.image ? (
+                  <img
+                    src={viewingProfile.image}
+                    alt={viewingProfile.name || "User"}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-border"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="w-8 h-8 text-primary" />
+                  </div>
+                )}
+                <div>
+                  <h3 className="text-lg font-semibold">{viewingProfile.name}</h3>
+                  {viewingProfile.bio && (
+                    <p className="text-sm text-muted-foreground mt-1">{viewingProfile.bio}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Social Links */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-muted-foreground">Connect via</h4>
+                <div className="grid gap-2">
+                  {viewingProfile.github && (
+                    <a
+                      href={viewingProfile.github.startsWith("http") ? viewingProfile.github : `https://github.com/${viewingProfile.github}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors cursor-pointer"
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                      </svg>
+                      <span className="text-sm font-medium">GitHub</span>
+                    </a>
+                  )}
+                  {viewingProfile.linkedin && (
+                    <a
+                      href={viewingProfile.linkedin.startsWith("http") ? viewingProfile.linkedin : `https://linkedin.com/in/${viewingProfile.linkedin}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors cursor-pointer"
+                    >
+                      <svg className="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                      </svg>
+                      <span className="text-sm font-medium">LinkedIn</span>
+                    </a>
+                  )}
+                  {viewingProfile.twitter && (
+                    <a
+                      href={viewingProfile.twitter.startsWith("http") ? viewingProfile.twitter : `https://twitter.com/${viewingProfile.twitter}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors cursor-pointer"
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                      </svg>
+                      <span className="text-sm font-medium">Twitter / X</span>
+                    </a>
+                  )}
+                  {viewingProfile.gmail && (
+                    <a
+                      href={`mailto:${viewingProfile.gmail}`}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors cursor-pointer"
+                    >
+                      <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
+                      </svg>
+                      <span className="text-sm font-medium">Email</span>
+                    </a>
+                  )}
+                  {!viewingProfile.github && !viewingProfile.linkedin && !viewingProfile.twitter && !viewingProfile.gmail && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <p className="text-sm">No social links available</p>
+                      <p className="text-xs mt-1">This user hasn&apos;t added any contact information yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                variant="outline"
+                onClick={() => setIsProfileOpen(false)}
+                className="w-full cursor-pointer"
+              >
+                Close
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -9,7 +9,7 @@ const classes = [
   {
     title: "Hands-on Prompt Engineering",
     by: "Senior AI Engineer",
-    date: "Nov 22",
+    date: "Dec 2",
     img: "/prompt-engineering-tutorial-screen.jpg",
   },
   {
