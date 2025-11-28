@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SkillNexus - Learn and Grow",
   description: "A platform for skill development and learning",
+  icons: {
+    icon: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

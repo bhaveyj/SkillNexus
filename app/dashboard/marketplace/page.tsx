@@ -684,7 +684,7 @@ export default function MarketplacePage() {
                         {!isMe && !canExchange && !hasRequested && (
                           <Button 
                             size="sm" 
-                            className="w-full h-8 text-xs cursor-pointer"
+                            className="w-full h-8 text-xs cursor-pointer bg-blue-500 hover:bg-blue-600 text-white"
                             onClick={(e) => {
                               e.preventDefault()
                               e.stopPropagation()

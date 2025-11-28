@@ -12,7 +12,7 @@ export function SiteHeader() {
     <header className="w-full border-b border-border/60 bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <span aria-hidden className="h-6 w-6 rounded-md bg-primary" />
+          <img src="/logo.svg" alt="SkillNexus" className="h-6 w-6" />
           <span className="font-semibold tracking-tight">SkillNexus</span>
           <span className="sr-only">SkillNexus home</span>
         </Link>

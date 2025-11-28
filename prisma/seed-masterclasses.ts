@@ -99,9 +99,12 @@ async function main() {
   console.log('Created instructors');
 
   // Create masterclasses with auto-generated Meet links
+  // Mix of past (completed) and future (upcoming) sessions for testing
   await prisma.masterclass.upsert({
     where: { id: 'masterclass-1' },
-    update: {},
+    update: {
+      date: new Date('2025-12-15T14:00:00'),
+    },
     create: {
       id: 'masterclass-1',
       title: 'Advanced Machine Learning',
@@ -110,7 +113,7 @@ async function main() {
       instructorName: instructor1.name!,
       category: 'AI/ML',
       level: 'ADVANCED',
-      date: new Date('2024-12-15T14:00:00'),
+      date: new Date('2025-12-15T14:00:00'),
       time: '2:00 PM',
       duration: '2 hours',
       meetLink: generateMeetLink(), // Auto-generated
@@ -121,7 +124,9 @@ async function main() {
 
   await prisma.masterclass.upsert({
     where: { id: 'masterclass-2' },
-    update: {},
+    update: {
+      date: new Date('2025-12-18T15:00:00'),
+    },
     create: {
       id: 'masterclass-2',
       title: 'GenAI Fundamentals',
@@ -130,7 +135,7 @@ async function main() {
       instructorName: instructor2.name!,
       category: 'AI/ML',
       level: 'INTERMEDIATE',
-      date: new Date('2024-12-18T15:00:00'),
+      date: new Date('2025-12-18T15:00:00'),
       time: '3:00 PM',
       duration: '1.5 hours',
       meetLink: generateMeetLink(), // Auto-generated
@@ -141,7 +146,9 @@ async function main() {
 
   await prisma.masterclass.upsert({
     where: { id: 'masterclass-3' },
-    update: {},
+    update: {
+      date: new Date('2025-11-20T16:00:00'),
+    },
     create: {
       id: 'masterclass-3',
       title: 'Production ML Systems',
@@ -150,7 +157,7 @@ async function main() {
       instructorName: instructor3.name!,
       category: 'AI/ML',
       level: 'ADVANCED',
-      date: new Date('2024-12-20T16:00:00'),
+      date: new Date('2025-11-20T16:00:00'),
       time: '4:00 PM',
       duration: '2 hours',
       meetLink: generateMeetLink(), // Auto-generated
@@ -161,7 +168,9 @@ async function main() {
 
   await prisma.masterclass.upsert({
     where: { id: 'masterclass-4' },
-    update: {},
+    update: {
+      date: new Date('2025-11-25T14:00:00'),
+    },
     create: {
       id: 'masterclass-4',
       title: 'Cloud Native Development',
@@ -170,7 +179,7 @@ async function main() {
       instructorName: instructor4.name!,
       category: 'Cloud',
       level: 'INTERMEDIATE',
-      date: new Date('2024-12-22T14:00:00'),
+      date: new Date('2025-11-25T14:00:00'),
       time: '2:00 PM',
       duration: '2.5 hours',
       meetLink: generateMeetLink(), // Auto-generated
@@ -181,7 +190,9 @@ async function main() {
 
   await prisma.masterclass.upsert({
     where: { id: 'masterclass-5' },
-    update: {},
+    update: {
+      date: new Date('2025-12-05T13:00:00'),
+    },
     create: {
       id: 'masterclass-5',
       title: 'AI Ethics & Responsible AI',
@@ -190,7 +201,7 @@ async function main() {
       instructorName: instructor5.name!,
       category: 'AI/ML',
       level: 'BEGINNER',
-      date: new Date('2024-12-25T13:00:00'),
+      date: new Date('2025-12-05T13:00:00'),
       time: '1:00 PM',
       duration: '1 hour',
       meetLink: generateMeetLink(), // Auto-generated
