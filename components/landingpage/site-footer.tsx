@@ -5,7 +5,7 @@ export function SiteFooter() {
     <footer className="border-t border-border/60">
       <div className="mx-auto max-w-6xl px-4 py-10 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <span aria-hidden className="h-5 w-5 rounded bg-primary" />
+          <img src="/logo.svg" alt="SkillNexus" className="h-5 w-5" />
           <span className="text-sm text-muted-foreground">© {new Date().getFullYear()} SkillNexus</span>
         </div>
         <nav className="text-sm flex items-center gap-4 text-muted-foreground">

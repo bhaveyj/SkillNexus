@@ -73,7 +73,7 @@ export default function SignUp() {
       <header className="w-full border-b border-slate-800 bg-slate-950/60 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span aria-hidden className="h-6 w-6 rounded-md bg-cyan-500" />
+            <img src="/logo.svg" alt="SkillNexus" className="h-6 w-6" />
             <span className="font-semibold tracking-tight text-white">SkillNexus</span>
           </Link>
           <Link href="/" className="text-sm text-slate-400 hover:text-white transition-colors">

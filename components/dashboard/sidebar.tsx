@@ -149,10 +149,10 @@ export function Sidebar() {
 export const Logo = () => {
   return (
     <a
-      href="#"
+      href="/dashboard"
       className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal"
     >
-      <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-foreground" />
+      <img src="/logo.svg" alt="SkillNexus" className="h-7 w-7 shrink-0" />
       <motion.span
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -167,10 +167,10 @@ export const Logo = () => {
 export const LogoIcon = () => {
   return (
     <a
-      href="#"
+      href="/dashboard"
       className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal"
     >
-      <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-foreground" />
+      <img src="/logo.svg" alt="SkillNexus" className="h-7 w-7 shrink-0" />
     </a>
   );
 };
