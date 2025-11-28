@@ -5,9 +5,48 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Share2, RefreshCw, GraduationCap, Clock, ShoppingBag, BookOpen, UserCircle, ChevronRight, Search, Bell } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Loader } from "@/components/ui/loader"
+
+interface RegisteredSession {
+  id: string
+  title: string
+  instructorName: string
+  date: string
+  time: string
+  category: string
+}
 
 export default function DashboardPage() {
   const { data: session } = useSession()
+  const [recentSessions, setRecentSessions] = useState<RegisteredSession[]>([])
+  const [loadingSessions, setLoadingSessions] = useState(true)
+
+  useEffect(() => {
+    const fetchRecentSessions = async () => {
+      try {
+        const response = await fetch("/api/masterclass/my-sessions")
+        if (response.ok) {
+          const data = await response.json()
+          // Get only the first 3 upcoming sessions
+          const upcoming = data
+            .filter((s: RegisteredSession) => new Date(s.date) >= new Date())
+            .slice(0, 3)
+          setRecentSessions(upcoming)
+        }
+      } catch (error) {
+        console.error("Error fetching recent sessions:", error)
+      } finally {
+        setLoadingSessions(false)
+      }
+    }
+
+    if (session) {
+      fetchRecentSessions()
+    } else {
+      setLoadingSessions(false)
+    }
+  }, [session])
 
   const stats = [
     { 
@@ -48,35 +87,34 @@ export default function DashboardPage() {
     },
   ]
 
-  const recentSessions = [
-    {
-      id: 1,
-      title: "Python Basics",
-      instructor: "Alex Chen",
-      initials: "AC",
-      date: "Today, 2:00 PM",
-      type: "exchange",
-      status: "upcoming",
-    },
-    {
-      id: 2,
-      title: "Advanced ML Techniques",
-      instructor: "Sarah Williams",
-      initials: "SW",
-      date: "Tomorrow, 3:00 PM",
-      type: "masterclass",
-      status: "registered",
-    },
-    {
-      id: 3,
-      title: "React Fundamentals",
-      instructor: "You",
-      initials: "BJ",
-      date: "Friday, 4:00 PM",
-      type: "teaching",
-      status: "scheduled",
-    },
-  ]
+  const formatSessionDate = (dateStr: string, timeStr: string) => {
+    const date = new Date(dateStr)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    const sessionDate = new Date(date)
+    sessionDate.setHours(0, 0, 0, 0)
+
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    if (sessionDate.getTime() === today.getTime()) {
+      return `Today, ${timeStr}`
+    } else if (sessionDate.getTime() === tomorrow.getTime()) {
+      return `Tomorrow, ${timeStr}`
+    } else {
+      return `${date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}, ${timeStr}`
+    }
+  }
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
 
   return (
     <div className="flex-1 overflow-auto bg-background">
@@ -139,28 +177,45 @@ export default function DashboardPage() {
               <CardContent className="p-0 flex flex-col">
                 <div className="px-6 py-4 border-b border-border/40 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-foreground">Recent Sessions</h2>
-                  <Button variant="ghost" size="sm" className="text-blue-500 hover:text-blue-400 text-sm h-auto p-0">
-                    View all
-                  </Button>
+                  <Link href="/dashboard/my-sessions">
+                    <Button variant="ghost" size="sm" className="text-blue-500 hover:text-blue-400 text-sm h-auto p-0">
+                      View all
+                    </Button>
+                  </Link>
                 </div>
-                <div className="divide-y divide-border/40">
-                  {recentSessions.map((session) => (
-                    <div key={session.id} className="px-6 py-4 hover:bg-muted/30 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
-                          {session.initials}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-base text-foreground mb-0.5">{session.title}</p>
-                          <p className="text-sm text-muted-foreground">{session.instructor}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm text-muted-foreground">{session.date}</p>
+                {loadingSessions ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader />
+                  </div>
+                ) : recentSessions.length === 0 ? (
+                  <div className="px-6 py-12 text-center">
+                    <p className="text-muted-foreground mb-4">No upcoming sessions</p>
+                    <Link href="/dashboard/masterclasses">
+                      <Button variant="outline" size="sm">
+                        Browse Masterclasses
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/40">
+                    {recentSessions.map((sessionItem) => (
+                      <div key={sessionItem.id} className="px-6 py-4 hover:bg-muted/30 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                            {getInitials(sessionItem.instructorName)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-base text-foreground mb-0.5">{sessionItem.title}</p>
+                            <p className="text-sm text-muted-foreground">{sessionItem.instructorName}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm text-muted-foreground">{formatSessionDate(sessionItem.date, sessionItem.time)}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

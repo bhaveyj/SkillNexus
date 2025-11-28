@@ -15,9 +15,17 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const category = searchParams.get('category');
 
-    const where = category && category !== 'All' 
-      ? { category } 
-      : {};
+    // Get today's date at midnight for comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const where = {
+      // Only show masterclasses that haven't expired (date is today or in the future)
+      date: {
+        gte: today,
+      },
+      ...(category && category !== 'All' ? { category } : {}),
+    };
 
     const masterclasses = await prisma.masterclass.findMany({
       where,

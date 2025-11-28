@@ -96,6 +96,19 @@ export default function MySessionsPage() {
     )
   }
 
+  // Sort sessions: upcoming/today first, completed at the bottom
+  const sortedSessions = [...sessions].sort((a, b) => {
+    const statusA = getStatus(a.date)
+    const statusB = getStatus(b.date)
+    
+    // Completed sessions go to the bottom
+    if (statusA === "Completed" && statusB !== "Completed") return 1
+    if (statusA !== "Completed" && statusB === "Completed") return -1
+    
+    // Among same status, sort by date (earliest first)
+    return new Date(a.date).getTime() - new Date(b.date).getTime()
+  })
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -114,10 +127,11 @@ export default function MySessionsPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {sessions.map((masterclass) => {
+          {sortedSessions.map((masterclass) => {
             const status = getStatus(masterclass.date)
+            const isCompleted = status === "Completed"
             return (
-              <Card key={masterclass.id}>
+              <Card key={masterclass.id} className={isCompleted ? "opacity-60" : ""}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
@@ -125,6 +139,11 @@ export default function MySessionsPage() {
                         <h3 className="text-lg font-semibold">{masterclass.title}</h3>
                         <Badge variant="default">Learning</Badge>
                         <Badge variant="outline">{masterclass.category}</Badge>
+                        {isCompleted && (
+                          <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                            ✓ Completed
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">
                         with {masterclass.instructorName}
@@ -136,7 +155,7 @@ export default function MySessionsPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      {status !== "Completed" && (
+                      {!isCompleted && (
                         <Badge 
                           variant={status === "Today" ? "default" : "secondary"} 
                           className="mb-3 block"
@@ -144,13 +163,24 @@ export default function MySessionsPage() {
                           {status}
                         </Badge>
                       )}
-                      <Button 
-                        className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-                        size="sm"
-                        onClick={() => handleJoinSession(masterclass.meetLink)}
-                      >
-                        Join Session
-                      </Button>
+                      {isCompleted ? (
+                        <Button 
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          className="cursor-not-allowed opacity-50"
+                        >
+                          Session Ended
+                        </Button>
+                      ) : (
+                        <Button 
+                          className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                          size="sm"
+                          onClick={() => handleJoinSession(masterclass.meetLink)}
+                        >
+                          Join Session
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
