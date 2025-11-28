@@ -97,9 +97,6 @@ export default function DashboardPage() {
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
               </Button>
-              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
-                BJ
-              </div>
             </div>
           </div>
         </div>
