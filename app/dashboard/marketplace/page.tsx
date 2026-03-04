@@ -779,7 +779,7 @@ export default function MarketplacePage() {
                         <div className="space-y-3 mb-4">
                           <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
                             <div className="flex items-start gap-2">
-                              <ArrowLeftRight className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                              <ArrowLeftRight className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs text-muted-foreground mb-1">You teach</p>
                                 <p className="text-sm font-medium text-green-500">{mySkill.name}</p>
@@ -792,7 +792,7 @@ export default function MarketplacePage() {
 
                           <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
                             <div className="flex items-start gap-2">
-                              <ArrowLeftRight className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                              <ArrowLeftRight className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs text-muted-foreground mb-1">You learn</p>
                                 <p className="text-sm font-medium text-blue-500">{theirSkill.name}</p>
@@ -904,7 +904,7 @@ export default function MarketplacePage() {
                           ))}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
+                        <div className="grid grid-cols-2 gap-2 max-h-100 overflow-y-auto">
                           {filteredSkills.map((skill) => {
                             const alreadyOffered = myOffers.some((o) => o.skill.id === skill.id)
                             const isSelected = selectedSkills.includes(skill.id)
@@ -918,11 +918,11 @@ export default function MarketplacePage() {
                               >
                                 <div className="flex items-center gap-2 w-full">
                                   {alreadyOffered ? (
-                                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                    <Check className="w-4 h-4 text-green-500 shrink-0" />
                                   ) : isSelected ? (
-                                    <Check className="w-4 h-4 flex-shrink-0" />
+                                    <Check className="w-4 h-4 shrink-0" />
                                   ) : (
-                                    <div className="w-4 h-4 flex-shrink-0" />
+                                    <div className="w-4 h-4 shrink-0" />
                                   )}
                                   <div className="flex-1 text-left min-w-0">
                                     <p className="text-sm font-medium truncate">{skill.name}</p>
@@ -1149,7 +1149,7 @@ export default function MarketplacePage() {
             {/* Select My Skill */}
             <div className="space-y-2">
               <label className="text-sm font-medium">I can teach:</label>
-              <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-2 max-h-50 overflow-y-auto pr-1">
                 {myOffers.map((offer) => (
                   <button
                     key={offer.id}
@@ -1175,7 +1175,7 @@ export default function MarketplacePage() {
             {/* Select Their Skill */}
             <div className="space-y-2">
               <label className="text-sm font-medium">I want to learn:</label>
-              <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-2 max-h-50 overflow-y-auto pr-1">
                 {proposeTarget?.skills?.map((skill: Skill) => (
                   <button
                     key={skill.id}
