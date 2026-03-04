@@ -60,6 +60,9 @@ model User {
   requests  Request[]
   sentExchangeRequests     ExchangeRequest[] @relation("SentExchangeRequests")
   receivedExchangeRequests ExchangeRequest[] @relation("ReceivedExchangeRequests")
+  chatSessionsAsP1         ChatSession[]     @relation("ChatParticipant1")
+  chatSessionsAsP2         ChatSession[]     @relation("ChatParticipant2")
+  chatMessages             ChatMessage[]
   
   // Add your custom user fields here
   bio           String?
@@ -168,6 +171,37 @@ model ExchangeRequest {
   @@unique([senderId, receiverId, senderSkillId, receiverSkillId])
   @@index([receiverId, status])
   @@index([senderId, status])
+
+  chatSession     ChatSession?
+}
+
+model ChatSession {
+  id                String   @id @default(cuid())
+  exchangeRequestId String   @unique
+  exchangeRequest   ExchangeRequest @relation(fields: [exchangeRequestId], references: [id], onDelete: Cascade)
+  participant1Id    String
+  participant1      User     @relation("ChatParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant2Id    String
+  participant2      User     @relation("ChatParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  messages          ChatMessage[]
+
+  @@index([participant1Id])
+  @@index([participant2Id])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content   String      @db.Text
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId, createdAt])
 }
 
 // Custom enums

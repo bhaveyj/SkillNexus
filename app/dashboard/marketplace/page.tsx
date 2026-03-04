@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Loader } from "@/components/ui/loader"
 import { useToast } from "@/components/ui/toast"
-import { Search, Plus, X, ArrowLeftRight, Users, BookOpen, Check, User } from "lucide-react"
+import { Search, Plus, X, ArrowLeftRight, Users, BookOpen, Check, User, MessageSquare } from "lucide-react"
+import { ChatDialog } from "@/components/chat/ChatDialog"
 
 interface Skill {
   id: string
@@ -124,6 +125,8 @@ export default function MarketplacePage() {
     gmail: string | null
   } | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(false)
+  const [chatMatch, setChatMatch] = useState<ExchangeRequest | null>(null)
+  const [isChatOpen, setIsChatOpen] = useState(false)
 
   const categories = ["ALL", "DEVOPS", "CLOUD", "WEB_DEVELOPMENT", "BACKEND", "FRONTEND", "MOBILE", "DATABASE", "DATA_SCIENCE", "AI_ML", "UI_UX"]
 
@@ -816,7 +819,15 @@ export default function MarketplacePage() {
                             <User className="w-3 h-3 mr-1" />
                             View Profile
                           </Button>
-                          <Button size="sm" className="flex-1 h-8 text-xs cursor-pointer">
+                          <Button
+                            size="sm"
+                            className="flex-1 h-8 text-xs cursor-pointer"
+                            onClick={() => {
+                              setChatMatch(match)
+                              setIsChatOpen(true)
+                            }}
+                          >
+                            <MessageSquare className="w-3 h-3 mr-1" />
                             Contact
                           </Button>
                         </div>
@@ -1315,6 +1326,18 @@ export default function MarketplacePage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Chat Dialog */}
+      {chatMatch && (
+        <ChatDialog
+          open={isChatOpen}
+          onOpenChange={(open) => {
+            setIsChatOpen(open)
+            if (!open) setChatMatch(null)
+          }}
+          match={chatMatch}
+        />
+      )}
     </div>
   )
 }
