@@ -95,7 +95,7 @@ function MessageBubble({
             : "bg-muted text-foreground rounded-bl-md"
         }`}
       >
-        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+        <p className="text-sm whitespace-pre-wrap wrap-break-word">{message.content}</p>
         <p
           className={`text-[10px] mt-1 ${
             isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
@@ -327,7 +327,7 @@ function ChatPanel({
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <MessageSquare className="w-10 h-10 mb-3 opacity-30" />
             <p className="text-sm font-medium">No messages yet</p>
-            <p className="text-xs">Say hello to start your skill exchange! 👋</p>
+            <p className="text-xs">Say hello to start your skill exchange!</p>
           </div>
         ) : (
           messages.map((msg) => (
