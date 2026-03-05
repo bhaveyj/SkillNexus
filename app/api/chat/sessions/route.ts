@@ -64,9 +64,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find or create chat session
-    let chatSession = await prisma.chatSession.findUnique({
+    // Atomically find-or-create chat session (upsert avoids race-condition P2002)
+    const chatSession = await prisma.chatSession.upsert({
       where: { exchangeRequestId },
+      create: {
+        exchangeRequestId,
+        participant1Id: exchangeRequest.senderId,
+        participant2Id: exchangeRequest.receiverId,
+      },
+      update: {},
       include: {
         participant1: {
           select: { id: true, name: true, email: true, image: true },
@@ -76,24 +82,6 @@ export async function POST(req: NextRequest) {
         },
       },
     });
-
-    if (!chatSession) {
-      chatSession = await prisma.chatSession.create({
-        data: {
-          exchangeRequestId,
-          participant1Id: exchangeRequest.senderId,
-          participant2Id: exchangeRequest.receiverId,
-        },
-        include: {
-          participant1: {
-            select: { id: true, name: true, email: true, image: true },
-          },
-          participant2: {
-            select: { id: true, name: true, email: true, image: true },
-          },
-        },
-      });
-    }
 
     return NextResponse.json({
       session: chatSession,

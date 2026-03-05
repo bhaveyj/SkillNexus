@@ -8,6 +8,7 @@ import {
   IconVideo,
   IconCalendar,
   IconUserBolt,
+  IconMessageCircle,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -39,6 +40,13 @@ export function Sidebar() {
       href: "/dashboard/marketplace",
       icon: (
         <IconShoppingCart className="h-5 w-5 shrink-0 text-foreground" />
+      ),
+    },
+    {
+      label: "Chats",
+      href: "/dashboard/chats",
+      icon: (
+        <IconMessageCircle className="h-5 w-5 shrink-0 text-foreground" />
       ),
     },
     {

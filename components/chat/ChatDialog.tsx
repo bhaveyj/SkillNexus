@@ -358,7 +358,21 @@ export function ChatDialog({ open, onOpenChange, match }: ChatDialogProps) {
                 </p>
               </div>
             </div>
-            <ConnectionBadge status={ws.status} />
+            <Badge
+              variant="outline"
+              className={`text-xs gap-1 ${
+                peerOnline
+                  ? "bg-green-500/10 text-green-500 border-green-500/20"
+                  : "bg-red-500/10 text-red-500 border-red-500/20"
+              }`}
+            >
+              {peerOnline ? (
+                <Wifi className="w-3 h-3" />
+              ) : (
+                <WifiOff className="w-3 h-3" />
+              )}
+              {peerOnline ? "Online" : "Offline"}
+            </Badge>
           </div>
 
           {/* Skill exchange info */}
