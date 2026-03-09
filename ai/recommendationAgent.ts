@@ -27,11 +27,11 @@ export interface RecommendationResult {
   reasoning: string
 }
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
 export async function generateRecommendations(userId: string): Promise<RecommendationResult> {
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+
   // 1. Fetch user data
   const user = await prisma.user.findUnique({
     where: { id: userId },
