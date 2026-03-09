@@ -18,6 +18,24 @@ interface Offer {
   skill: Skill
 }
 
+const INTEREST_OPTIONS = [
+  "BACKEND",
+  "FRONTEND",
+  "DEVOPS",
+  "CLOUD",
+  "DATABASE",
+  "AI_ML",
+  "DATA_SCIENCE",
+  "MOBILE",
+  "CYBERSECURITY",
+  "BLOCKCHAIN",
+  "GAME_DEVELOPMENT",
+  "UI_UX",
+  "TESTING",
+  "WEB_DEVELOPMENT",
+  "OTHER",
+] as const
+
 export default function ProfilePage() {
   const { data: session } = useSession()
   const [isEditing, setIsEditing] = useState(false)
@@ -29,6 +47,8 @@ export default function ProfilePage() {
     twitter: "",
     gmail: ""
   })
+  const [interests, setInterests] = useState<string[]>([])
+  const [isEditingInterests, setIsEditingInterests] = useState(false)
   const [userOffers, setUserOffers] = useState<Offer[]>([])
   const [allSkills, setAllSkills] = useState<Skill[]>([])
   const [isLoadingSkills, setIsLoadingSkills] = useState(true)
@@ -55,6 +75,7 @@ export default function ProfilePage() {
           twitter: data.twitter || "",
           gmail: data.gmail || ""
         })
+        setInterests(data.interests || [])
       }
     } catch (error) {
       console.error("Failed to fetch profile:", error)
@@ -151,7 +172,28 @@ export default function ProfilePage() {
       console.error("Failed to update bio:", error)
     }
   }
+  const toggleInterest = (interest: string) => {
+    setInterests((prev) =>
+      prev.includes(interest)
+        ? prev.filter((i) => i !== interest)
+        : [...prev, interest]
+    )
+  }
 
+  const saveInterests = async () => {
+    try {
+      const response = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interests })
+      })
+      if (response.ok) {
+        setIsEditingInterests(false)
+      }
+    } catch (error) {
+      console.error("Failed to update interests:", error)
+    }
+  }
   // Get skill IDs that user already has
   const userSkillIds = userOffers.map(offer => offer.skillId)
   
@@ -312,6 +354,65 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Interests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isEditingInterests ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">Select areas you&apos;re interested in pursuing:</p>
+                <div className="flex flex-wrap gap-2">
+                  {INTEREST_OPTIONS.map((interest) => (
+                    <Badge
+                      key={interest}
+                      className={`cursor-pointer transition-colors ${
+                        interests.includes(interest)
+                          ? "bg-blue-500/20 text-blue-500 border border-blue-500/30"
+                          : "bg-muted text-muted-foreground border border-border hover:bg-accent"
+                      }`}
+                      onClick={() => toggleInterest(interest)}
+                    >
+                      {interest.replace(/_/g, " ")}
+                      {interests.includes(interest) && <span className="ml-1">✓</span>}
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button onClick={saveInterests}>Save</Button>
+                  <Button variant="outline" onClick={() => setIsEditingInterests(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {interests.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {interests.map((interest) => (
+                      <Badge
+                        key={interest}
+                        className="bg-blue-500/20 text-blue-500 border border-blue-500/30"
+                      >
+                        {interest.replace(/_/g, " ")}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm mb-4">No interests selected yet</p>
+                )}
+                <Button
+                  size="sm"
+                  className="cursor-pointer"
+                  onClick={() => setIsEditingInterests(true)}
+                >
+                  Edit Interests
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

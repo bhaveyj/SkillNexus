@@ -8,6 +8,7 @@ const updateProfileSchema = z.object({
   name: z.string().min(2).optional(),
   bio: z.string().optional(),
   skills: z.array(z.string()).optional(),
+  interests: z.array(z.string()).optional(),
   location: z.string().optional(),
   website: z.string().url().optional().or(z.literal("")),
   socials: z.object({
@@ -38,6 +39,7 @@ export async function GET() {
         image: true,
         bio: true,
         skills: true,
+        interests: true,
         location: true,
         website: true,
         role: true,
@@ -102,6 +104,7 @@ export async function PUT(req: NextRequest) {
         image: true,
         bio: true,
         skills: true,
+        interests: true,
         location: true,
         website: true,
         role: true,
@@ -117,7 +120,7 @@ export async function PUT(req: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid input", details: error.errors },
+        { error: "Invalid input", details: error.issues },
         { status: 400 }
       )
     }

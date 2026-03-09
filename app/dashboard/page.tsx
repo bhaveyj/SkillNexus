@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Share2, RefreshCw, GraduationCap, Clock, ShoppingBag, BookOpen, UserCircle, ChevronRight, Search, Bell } from "lucide-react"
+import { Share2, RefreshCw, GraduationCap, Clock, ShoppingBag, BookOpen, UserCircle, ChevronRight, Search, Bell, Sparkles, ArrowRight } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Loader } from "@/components/ui/loader"
 
@@ -17,10 +17,37 @@ interface RegisteredSession {
   category: string
 }
 
+interface RecommendedExchange {
+  id: string
+  reason: string
+  userName: string
+  matchedSkill: string
+  theyWantFromMe: string
+}
+
+interface RecommendedMasterclass {
+  id: string
+  reason: string
+  title: string
+  instructorName: string
+  category: string
+  level: string
+  date: string
+}
+
+interface Recommendations {
+  recommendedExchanges: RecommendedExchange[]
+  recommendedMasterclasses: RecommendedMasterclass[]
+  reasoning: string
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession()
   const [recentSessions, setRecentSessions] = useState<RegisteredSession[]>([])
   const [loadingSessions, setLoadingSessions] = useState(true)
+  const [recommendations, setRecommendations] = useState<Recommendations | null>(null)
+  const [loadingRecs, setLoadingRecs] = useState(false)
+  const [recsError, setRecsError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchRecentSessions = async () => {
@@ -47,6 +74,28 @@ export default function DashboardPage() {
       setLoadingSessions(false)
     }
   }, [session])
+
+  const fetchRecommendations = async () => {
+    setLoadingRecs(true)
+    setRecsError(null)
+    try {
+      const response = await fetch("/api/ai/recommendations")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setRecommendations(data.data)
+        } else {
+          setRecsError("Failed to get recommendations")
+        }
+      } else {
+        setRecsError("Failed to get recommendations")
+      }
+    } catch {
+      setRecsError("Failed to get recommendations")
+    } finally {
+      setLoadingRecs(false)
+    }
+  }
 
   const stats = [
     { 
@@ -168,6 +217,132 @@ export default function DashboardPage() {
             </Card>
           ))}
         </div>
+
+        {/* AI Learning Advisor */}
+        <Card className="border-border/40 overflow-hidden">
+          <CardContent className="p-0">
+            <div className="px-6 py-4 border-b border-border/40 flex items-center justify-between bg-linear-to-r from-blue-500/5 to-purple-500/5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">AI Learning Advisor</h2>
+                  <p className="text-xs text-muted-foreground">Personalized recommendations based on your profile</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={fetchRecommendations}
+                disabled={loadingRecs}
+                className="bg-blue-500 hover:bg-blue-600 text-white"
+              >
+                {loadingRecs ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Get Recommendations
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {recsError && (
+              <div className="px-6 py-4">
+                <p className="text-sm text-red-400">{recsError}</p>
+              </div>
+            )}
+
+            {!recommendations && !loadingRecs && !recsError && (
+              <div className="px-6 py-10 text-center">
+                <Sparkles className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground text-sm">Click &quot;Get Recommendations&quot; to receive AI-powered learning suggestions</p>
+              </div>
+            )}
+
+            {loadingRecs && (
+              <div className="px-6 py-10 text-center">
+                <Loader />
+                <p className="text-muted-foreground text-sm mt-3">Analyzing your learning profile...</p>
+              </div>
+            )}
+
+            {recommendations && !loadingRecs && (
+              <div className="p-6 space-y-6">
+                {/* Reasoning */}
+                <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                  <p className="text-sm text-muted-foreground">{recommendations.reasoning}</p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Recommended Exchanges */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 text-blue-500" />
+                      Recommended Skill Exchanges
+                    </h3>
+                    {recommendations.recommendedExchanges.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No exchange recommendations at this time.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {recommendations.recommendedExchanges.map((exchange) => (
+                          <div
+                            key={exchange.id}
+                            className="p-4 rounded-xl border border-border/40 hover:border-blue-500/50 transition-all hover:shadow-md"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <p className="font-medium text-sm text-foreground">{exchange.userName}</p>
+                              <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                              <span className="px-2 py-0.5 bg-green-500/10 text-green-500 rounded-full">Learn: {exchange.matchedSkill}</span>
+                              <span className="px-2 py-0.5 bg-orange-500/10 text-orange-500 rounded-full">Teach: {exchange.theyWantFromMe}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{exchange.reason}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Recommended Masterclasses */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4 text-blue-500" />
+                      Recommended Masterclasses
+                    </h3>
+                    {recommendations.recommendedMasterclasses.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No masterclass recommendations at this time.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {recommendations.recommendedMasterclasses.map((mc) => (
+                          <div
+                            key={mc.id}
+                            className="p-4 rounded-xl border border-border/40 hover:border-blue-500/50 transition-all hover:shadow-md"
+                          >
+                            <p className="font-medium text-sm text-foreground mb-1">{mc.title}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                              <span>by {mc.instructorName}</span>
+                              <span>•</span>
+                              <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 rounded-full">{mc.category}</span>
+                              <span className="px-2 py-0.5 bg-purple-500/10 text-purple-500 rounded-full">{mc.level}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-1">{mc.date}</p>
+                            <p className="text-xs text-muted-foreground">{mc.reason}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
