@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -101,8 +102,9 @@ export default function MarketplacePage() {
   const [sentRequests, setSentRequests] = useState<ExchangeRequest[]>([])
   const [receivedRequests, setReceivedRequests] = useState<ExchangeRequest[]>([])
   const [loading, setLoading] = useState(true)
+  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
-  const [browseSearch, setBrowseSearch] = useState("")
+  const [browseSearch, setBrowseSearch] = useState(searchParams.get("search") ?? "")
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL")
   const [browseCategory, setBrowseCategory] = useState<string>("ALL")
   const [isAddOfferOpen, setIsAddOfferOpen] = useState(false)
