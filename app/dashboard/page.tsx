@@ -221,7 +221,7 @@ export default function DashboardPage() {
                     </p>
                     <p className="text-4xl font-bold text-foreground">{stat.value}</p>
                   </div>
-                  <div className={`w-12 h-12 rounded-xl ${stat.iconBg} flex items-center justify-center flex-shrink-0`}>
+                  <div className={`w-12 h-12 rounded-xl ${stat.iconBg} flex items-center justify-center shrink-0`}>
                     <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
                   </div>
                 </div>
@@ -404,14 +404,14 @@ export default function DashboardPage() {
                     {recentSessions.map((sessionItem) => (
                       <div key={sessionItem.id} className="px-6 py-4 hover:bg-muted/30 transition-colors">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                          <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold shrink-0">
                             {getInitials(sessionItem.instructorName)}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-base text-foreground mb-0.5">{sessionItem.title}</p>
                             <p className="text-sm text-muted-foreground">{sessionItem.instructorName}</p>
                           </div>
-                          <div className="text-right flex-shrink-0">
+                          <div className="text-right shrink-0">
                             <p className="text-sm text-muted-foreground">{formatSessionDate(sessionItem.date, sessionItem.time)}</p>
                           </div>
                         </div>
