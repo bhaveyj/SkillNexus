@@ -3,8 +3,12 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sendMasterclassRegistrationEmail } from "@/lib/email"
+import { applyRateLimit, generalLimiter } from "@/middleware/rateLimiter"
 
 export async function POST(_req: NextRequest) {
+  const limited = await applyRateLimit(_req, generalLimiter);
+  if (limited) return limited;
+
   try {
     const session = await getServerSession(authOptions);
 
@@ -129,6 +133,9 @@ export async function POST(_req: NextRequest) {
 
 // Get user's registrations
 export async function GET(_req: NextRequest) {
+  const limited = await applyRateLimit(_req, generalLimiter);
+  if (limited) return limited;
+
   try {
     const session = await getServerSession(authOptions);
 

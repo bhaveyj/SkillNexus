@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { applyRateLimit, generalLimiter } from "@/middleware/rateLimiter"
 
 const updateProfileSchema = z.object({
   name: z.string().min(2).optional(),
@@ -19,7 +20,10 @@ const updateProfileSchema = z.object({
   }).optional(),
 })
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const limited = await applyRateLimit(req, generalLimiter)
+  if (limited) return limited
+
   try {
     const session = await getServerSession(authOptions)
 
@@ -69,6 +73,9 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const limited = await applyRateLimit(req, generalLimiter)
+  if (limited) return limited
+
   try {
     const session = await getServerSession(authOptions)
 

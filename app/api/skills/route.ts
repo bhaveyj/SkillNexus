@@ -3,13 +3,24 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { Prisma, SkillCategory } from '@prisma/client';
+import { applyRateLimit, generalLimiter } from '@/middleware/rateLimiter';
+import { getCache, setCache, deleteCache } from '@/lib/cache';
 
 // GET /api/skills - Get all skills or filter by category
 export async function GET(request: NextRequest) {
+  const limited = await applyRateLimit(request, generalLimiter);
+  if (limited) return limited;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const category = searchParams.get('category');
     const search = searchParams.get('search');
+
+    const cacheKey = `skills:${category || 'all'}:${search || 'none'}`;
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      return NextResponse.json({ success: true, data: cached });
+    }
 
     const where: Prisma.SkillWhereInput = {};
     
@@ -39,6 +50,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    await setCache(cacheKey, skills, 300);
+
     return NextResponse.json({
       success: true,
       data: skills,
@@ -57,6 +70,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/skills - Create a new skill (admin/authenticated users can add custom skills)
 export async function POST(request: NextRequest) {
+  const limited = await applyRateLimit(request, generalLimiter);
+  if (limited) return limited;
+
   try {
     const session = await getServerSession(authOptions);
     

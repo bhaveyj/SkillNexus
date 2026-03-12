@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import type { Masterclass, MasterclassRegistration, User } from '@prisma/client';
+import { applyRateLimit, generalLimiter } from '@/middleware/rateLimiter';
 
 type MasterclassWithRelations = Masterclass & {
   registrations: MasterclassRegistration[];
@@ -10,6 +11,9 @@ type MasterclassWithRelations = Masterclass & {
 };
 
 export async function GET(req: NextRequest) {
+  const limited = await applyRateLimit(req, generalLimiter);
+  if (limited) return limited;
+
   try {
     const session = await getServerSession(authOptions);
     const { searchParams } = new URL(req.url);

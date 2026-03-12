@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { applyRateLimit, authLimiter } from "@/middleware/rateLimiter"
 
 const signUpSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -10,6 +11,9 @@ const signUpSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const limited = await applyRateLimit(req, authLimiter)
+  if (limited) return limited
+
   try {
     const body = await req.json()
     const { name, email, password } = signUpSchema.parse(body)

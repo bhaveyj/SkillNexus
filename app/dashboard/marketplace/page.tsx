@@ -1,8 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { useSearchParams } from "next/navigation"
+import useSWR from "swr"
+import fetcher from "@/lib/fetcher"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -93,15 +95,6 @@ export default function MarketplacePage() {
   const { data: session } = useSession()
   const { toast, toasts } = useToast()
   const [activeTab, setActiveTab] = useState<"browse" | "matches" | "my-skills" | "requests">("browse")
-  const [skills, setSkills] = useState<Skill[]>([])
-  const [filteredSkills, setFilteredSkills] = useState<Skill[]>([])
-  const [allOffers, setAllOffers] = useState<UserOffer[]>([])
-  const [filteredOffers, setFilteredOffers] = useState<UserOffer[]>([])
-  const [myOffers, setMyOffers] = useState<Offer[]>([])
-  const [acceptedMatches, setAcceptedMatches] = useState<ExchangeRequest[]>([])
-  const [sentRequests, setSentRequests] = useState<ExchangeRequest[]>([])
-  const [receivedRequests, setReceivedRequests] = useState<ExchangeRequest[]>([])
-  const [loading, setLoading] = useState(true)
   const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
   const [browseSearch, setBrowseSearch] = useState(searchParams.get("search") ?? "")
@@ -109,7 +102,6 @@ export default function MarketplacePage() {
   const [browseCategory, setBrowseCategory] = useState<string>("ALL")
   const [isAddOfferOpen, setIsAddOfferOpen] = useState(false)
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
-  const [requestedUsers, setRequestedUsers] = useState<Set<string>>(new Set())
   const [isProposeOpen, setIsProposeOpen] = useState(false)
   const [proposeTarget, setProposeTarget] = useState<(UserOffer & { skills: Skill[] }) | null>(null)
   const [proposeMySkill, setProposeMySkill] = useState<string>("")
@@ -132,99 +124,54 @@ export default function MarketplacePage() {
 
   const categories = ["ALL", "DEVOPS", "CLOUD", "WEB_DEVELOPMENT", "BACKEND", "FRONTEND", "MOBILE", "DATABASE", "DATA_SCIENCE", "AI_ML", "UI_UX"]
 
-  useEffect(() => {
-    fetchData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const swrOptions = { revalidateOnFocus: false, dedupingInterval: 60000 }
+  const { data: skillsData, mutate: mutateSkills } = useSWR("/api/skills", fetcher, swrOptions)
+  const { data: offersData, mutate: mutateOffers } = useSWR("/api/offers", fetcher, swrOptions)
+  const { data: allOffersData, mutate: mutateAllOffers } = useSWR("/api/offers?all=true", fetcher, swrOptions)
+  const { data: exchangeData, mutate: mutateExchanges } = useSWR("/api/exchange-requests", fetcher, swrOptions)
+  // matches and requests are fetched but only matches data is unused in the original code
+  useSWR("/api/requests", fetcher, swrOptions)
+  useSWR("/api/matches", fetcher, swrOptions)
 
-  useEffect(() => {
-    filterSkills()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [skills, searchQuery, selectedCategory])
+  const skills: Skill[] = skillsData?.data ?? []
+  const myOffers: Offer[] = offersData?.data ?? []
+  const allOffers: UserOffer[] = allOffersData?.data ?? []
+  const sentRequests: ExchangeRequest[] = exchangeData?.sent ?? []
+  const receivedRequests: ExchangeRequest[] = (exchangeData?.received ?? []).filter((r: ExchangeRequest) => r.status === "PENDING")
+  const requestedUsers = useMemo(() => new Set<string>(sentRequests.map((r: ExchangeRequest) => r.receiverId)), [sentRequests])
+  const acceptedMatches: ExchangeRequest[] = useMemo(() => [
+    ...sentRequests.filter((r: ExchangeRequest) => r.status === "ACCEPTED"),
+    ...(exchangeData?.received ?? []).filter((r: ExchangeRequest) => r.status === "ACCEPTED"),
+  ], [sentRequests, exchangeData])
 
-  useEffect(() => {
-    filterOffers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allOffers, browseSearch, browseCategory])
+  const loading = !skillsData && !offersData
 
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      const [skillsRes, offersRes, requestsRes, matchesRes, allOffersRes, exchangeRequestsRes] = await Promise.all([
-        fetch("/api/skills"),
-        fetch("/api/offers"),
-        fetch("/api/requests"),
-        fetch("/api/matches"),
-        fetch("/api/offers?all=true"),
-        fetch("/api/exchange-requests"),
-      ])
-
-      const [skillsData, offersData, , , allOffersData, exchangeRequestsData] = await Promise.all([
-        skillsRes.json(),
-        offersRes.json(),
-        requestsRes.json(),
-        matchesRes.json(),
-        allOffersRes.json(),
-        exchangeRequestsRes.json(),
-      ])
-
-      if (skillsData.success) setSkills(skillsData.data)
-      if (offersData.success) setMyOffers(offersData.data)
-      if (allOffersData.success) setAllOffers(allOffersData.data)
-      if (exchangeRequestsData.sent) setSentRequests(exchangeRequestsData.sent)
-      if (exchangeRequestsData.received) setReceivedRequests(exchangeRequestsData.received.filter((r: ExchangeRequest) => r.status === "PENDING"))
-      
-      // Track users we've already sent requests to
-      if (exchangeRequestsData.sent) {
-        const requestedUserIds = new Set<string>(exchangeRequestsData.sent.map((r: ExchangeRequest) => r.receiverId))
-        setRequestedUsers(requestedUserIds)
-      }
-      
-      // Combine accepted requests from both sent and received
-      if (exchangeRequestsData.sent || exchangeRequestsData.received) {
-        const accepted = [
-          ...(exchangeRequestsData.sent || []).filter((r: ExchangeRequest) => r.status === "ACCEPTED"),
-          ...(exchangeRequestsData.received || []).filter((r: ExchangeRequest) => r.status === "ACCEPTED")
-        ]
-        setAcceptedMatches(accepted)
-      }
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to load marketplace data",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
+  const refreshAll = () => {
+    mutateSkills()
+    mutateOffers()
+    mutateAllOffers()
+    mutateExchanges()
   }
 
-  const filterSkills = () => {
+  const filteredSkills = useMemo(() => {
     let filtered = skills
-
     if (selectedCategory !== "ALL") {
       filtered = filtered.filter((skill) => skill.category === selectedCategory)
     }
-
     if (searchQuery) {
       filtered = filtered.filter((skill) =>
         skill.name.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
+    return filtered
+  }, [skills, searchQuery, selectedCategory])
 
-    setFilteredSkills(filtered)
-  }
-
-  const filterOffers = () => {
+  const filteredOffers = useMemo(() => {
     let filtered = allOffers
-
-    // Remove logged-in user's offers
     filtered = filtered.filter((offer) => offer.userId !== session?.user?.id)
-
     if (browseCategory !== "ALL") {
       filtered = filtered.filter((offer) => offer.skill.category === browseCategory)
     }
-
     if (browseSearch) {
       filtered = filtered.filter((offer) =>
         offer.skill.name.toLowerCase().includes(browseSearch.toLowerCase()) ||
@@ -263,8 +210,8 @@ export default function MarketplacePage() {
       return 0
     })
 
-    setFilteredOffers(sorted as UserOffer[])
-  }
+    return sorted as UserOffer[]
+  }, [allOffers, browseSearch, browseCategory, session?.user?.id, myOffers])
 
   const addMultipleOffers = async () => {
     if (selectedSkills.length === 0) {
@@ -295,7 +242,7 @@ export default function MarketplacePage() {
       
       setSelectedSkills([])
       setIsAddOfferOpen(false)
-      fetchData()
+      refreshAll()
     } catch {
       toast({
         title: "Error",
@@ -326,7 +273,7 @@ export default function MarketplacePage() {
           title: "Success",
           description: "Skill removed from your offerings",
         })
-        fetchData()
+        refreshAll()
       }
     } catch {
       toast({
@@ -358,21 +305,13 @@ export default function MarketplacePage() {
       const data = await res.json()
 
       if (res.ok) {
-        // Add user to requested set immediately
-        setRequestedUsers(prev => new Set([...prev, receiverId]))
-        
         toast({
           title: "Request Sent! 🎉",
           description: "Your exchange request has been sent successfully",
         })
         
-        // Update sent requests in background
-        const exchangeRequestsRes = await fetch("/api/exchange-requests")
-        const exchangeRequestsData = await exchangeRequestsRes.json()
-        
-        if (exchangeRequestsData.sent) {
-          setSentRequests(exchangeRequestsData.sent)
-        }
+        // Revalidate exchange requests
+        mutateExchanges()
       } else {
         toast({
           title: "Error",
@@ -418,18 +357,13 @@ export default function MarketplacePage() {
           title: "Exchange Proposed! 🎉",
           description: "Your exchange proposal has been sent",
         })
-        setRequestedUsers(prev => new Set(prev).add(proposeTarget.userId))
         setIsProposeOpen(false)
         setProposeMySkill("")
         setProposeTheirSkill("")
         setProposeTarget(null)
 
-        // Update sent requests
-        const exchangeRes = await fetch("/api/exchange-requests")
-        const exchangeData = await exchangeRes.json()
-        if (exchangeData.sent) {
-          setSentRequests(exchangeData.sent)
-        }
+        // Revalidate exchange requests
+        mutateExchanges()
       } else {
         toast({
           title: "Error",
@@ -466,7 +400,7 @@ export default function MarketplacePage() {
             ? "You can now connect with this person" 
             : "Request has been declined",
         })
-        fetchData()
+        refreshAll()
       } else {
         toast({
           title: "Error",
