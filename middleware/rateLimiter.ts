@@ -31,15 +31,6 @@ function getClientIp(req: Request): string {
   return req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "anonymous"
 }
 
-/**
- * Apply rate limiting to a request.
- * Returns null if allowed, or a 429 Response if the limit is exceeded.
- *
- * Usage in any API route:
- *
- *   const limited = await applyRateLimit(req, generalLimiter)
- *   if (limited) return limited
- */
 export async function applyRateLimit(
   req: Request,
   limiter: Ratelimit = generalLimiter
