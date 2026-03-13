@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { applyRateLimit, generalLimiter } from "@/middleware/rateLimiter"
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
+  const limited = await applyRateLimit(req, generalLimiter)
+  if (limited) return limited
+
   try {
     const session = await getServerSession(authOptions)
 

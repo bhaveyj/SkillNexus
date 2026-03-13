@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import useSWR from "swr";
+import fetcher from "@/lib/fetcher";
 import {
   useWebSocket,
   ChatMessageData,
@@ -387,29 +389,21 @@ export default function ChatsPage() {
   const { data: authSession } = useSession();
   const userId = authSession?.user?.id;
 
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
-  const ws = useWebSocket();
+  const { data: sessionsData, isLoading: loading } = useSWR("/api/chat/sessions", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
+  });
+  const sessions: ChatSession[] = sessionsData?.sessions ?? [];
 
   useEffect(() => {
-    async function fetchSessions() {
-      try {
-        const res = await fetch("/api/chat/sessions");
-        const data = await res.json();
-        const list: ChatSession[] = data.sessions || [];
-        setSessions(list);
-        if (list.length > 0) setSelectedSessionId(list[0].id);
-      } catch (err) {
-        console.error("Failed to fetch chat sessions:", err);
-      } finally {
-        setLoading(false);
-      }
+    if (sessions.length > 0 && !selectedSessionId) {
+      setSelectedSessionId(sessions[0].id);
     }
+  }, [sessions, selectedSessionId]);
 
-    fetchSessions();
-  }, []);
+  const ws = useWebSocket();
 
   const selectedSession = sessions.find((s) => s.id === selectedSessionId) ?? null;
   const selectedMatch = selectedSession ? sessionToMatch(selectedSession) : null;

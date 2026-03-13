@@ -1,14 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { signChatToken } from "@/server/authSocketMiddleware";
+import { applyRateLimit, authLimiter } from "@/middleware/rateLimiter";
 
 /**
  * POST /api/chat/token
  * Generate a short-lived JWT for WebSocket authentication.
  * Requires an authenticated NextAuth session.
  */
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const limited = await applyRateLimit(req, authLimiter);
+  if (limited) return limited;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

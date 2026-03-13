@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { applyRateLimit, generalLimiter } from '@/middleware/rateLimiter';
 
 // GET /api/requests - Get user's requests or all requests
 export async function GET(request: NextRequest) {
+  const limited = await applyRateLimit(request, generalLimiter);
+  if (limited) return limited;
+
   try {
     const session = await getServerSession(authOptions);
     const searchParams = request.nextUrl.searchParams;
@@ -59,6 +63,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/requests - Create a new request
 export async function POST(request: NextRequest) {
+  const limited = await applyRateLimit(request, generalLimiter);
+  if (limited) return limited;
+
   try {
     const session = await getServerSession(authOptions);
     
@@ -148,6 +155,9 @@ export async function POST(request: NextRequest) {
 
 // DELETE /api/requests?requestId=xxx - Delete a request
 export async function DELETE(request: NextRequest) {
+  const limited = await applyRateLimit(request, generalLimiter);
+  if (limited) return limited;
+
   try {
     const session = await getServerSession(authOptions);
     

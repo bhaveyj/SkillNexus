@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { applyRateLimit, generalLimiter } from '@/middleware/rateLimiter';
+import { getCache, setCache } from '@/lib/cache';
 
 interface Match {
   userId: string;
@@ -23,6 +25,9 @@ interface Match {
 
 // GET /api/matches - Find skill swap matches for the current user
 export async function GET(request: NextRequest) {
+  const limited = await applyRateLimit(request, generalLimiter);
+  if (limited) return limited;
+
   try {
     const session = await getServerSession(authOptions);
     
@@ -34,6 +39,12 @@ export async function GET(request: NextRequest) {
         },
         { status: 401 }
       );
+    }
+
+    const cacheKey = `matches:${session.user.id}`;
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      return NextResponse.json({ success: true, data: cached });
     }
 
     // Get current user's offers (skills they can teach)
@@ -151,6 +162,8 @@ export async function GET(request: NextRequest) {
       return acc;
     }, [] as Match[]);
 
+    await setCache(cacheKey, uniqueMatches, 120);
+
     return NextResponse.json({
       success: true,
       data: uniqueMatches,
@@ -170,6 +183,9 @@ export async function GET(request: NextRequest) {
 
 // GET /api/matches/detailed - Get detailed matching information for current user
 export async function POST(request: NextRequest) {
+  const limited = await applyRateLimit(request, generalLimiter);
+  if (limited) return limited;
+
   try {
     const session = await getServerSession(authOptions);
     

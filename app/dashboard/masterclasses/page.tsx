@@ -1,8 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
+import useSWR from "swr"
+import fetcher from "@/lib/fetcher"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -54,10 +56,7 @@ export default function MasterclassesPage() {
   const searchParams = useSearchParams()
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") ?? "")
-  const [masterclasses, setMasterclasses] = useState<Masterclass[]>([])
-  const [loading, setLoading] = useState(true)
   const [registering, setRegistering] = useState<string | null>(null)
-  const [userRole, setUserRole] = useState<string | null>(null)
   const [selectedMasterclass, setSelectedMasterclass] = useState<Masterclass | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [toast, setToast] = useState<{
@@ -65,39 +64,13 @@ export default function MasterclassesPage() {
     type: "success" | "error" | "warning" | "info"
   } | null>(null)
 
-  useEffect(() => {
-    fetchMasterclasses()
-    fetchUserRole()
-  }, [selectedCategory])
+  const swrOptions = { revalidateOnFocus: false, dedupingInterval: 60000 }
+  const masterclassParams = selectedCategory !== "All" ? `?category=${selectedCategory}` : ""
+  const { data: mcData, isLoading: loading, mutate: mutateMasterclasses } = useSWR(`/api/masterclass${masterclassParams}`, fetcher, swrOptions)
+  const { data: profileData } = useSWR("/api/user/profile", fetcher, swrOptions)
 
-  const fetchUserRole = async () => {
-    if (session?.user?.email) {
-      try {
-        const response = await fetch('/api/user/profile')
-        const data = await response.json()
-        setUserRole(data.role)
-      } catch (error) {
-        console.error('Failed to fetch user role:', error)
-      }
-    }
-  }
-
-  const fetchMasterclasses = async () => {
-    try {
-      const params = selectedCategory !== "All" ? `?category=${selectedCategory}` : ""
-      const response = await fetch(`/api/masterclass${params}`)
-      const data = await response.json()
-      setMasterclasses(data.masterclasses || [])
-    } catch (error) {
-      console.error("Failed to fetch masterclasses:", error)
-      setToast({
-        message: "Failed to load masterclasses",
-        type: "error",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
+  const masterclasses: Masterclass[] = mcData?.masterclasses ?? []
+  const userRole: string | null = profileData?.role ?? null
 
   const handleRegister = async (masterclassId: string) => {
     if (!session) {
@@ -131,7 +104,7 @@ export default function MasterclassesPage() {
       })
 
       // Refresh the masterclasses list
-      fetchMasterclasses()
+      mutateMasterclasses()
     } catch (error) {
       setToast({
         message: error instanceof Error ? error.message : "Failed to register",

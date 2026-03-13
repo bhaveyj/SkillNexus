@@ -1,9 +1,14 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { generateRecommendations } from "@/ai/recommendationAgent"
+import { applyRateLimit, aiLimiter } from "@/middleware/rateLimiter"
+import { getCache, setCache } from "@/lib/cache"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const limited = await applyRateLimit(req, aiLimiter)
+  if (limited) return limited
+
   try {
     const session = await getServerSession(authOptions)
 
@@ -11,7 +16,14 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const cacheKey = `recommendations:${session.user.id}`
+    const cached = await getCache(cacheKey)
+    if (cached) {
+      return NextResponse.json({ success: true, data: cached })
+    }
+
     const recommendations = await generateRecommendations(session.user.id)
+    await setCache(cacheKey, recommendations, 300)
 
     return NextResponse.json({
       success: true,
