@@ -42,11 +42,20 @@ interface Recommendations {
   reasoning: string
 }
 
+interface DashboardStats {
+  skillsShared: number
+  activeExchanges: number
+  masterclasses: number
+  learningHours: number
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [recentSessions, setRecentSessions] = useState<RegisteredSession[]>([])
   const [loadingSessions, setLoadingSessions] = useState(true)
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
+  const [pendingExchangeCount, setPendingExchangeCount] = useState(0)
   const [recommendations, setRecommendations] = useState<Recommendations | null>(() => {
     if (typeof window !== "undefined") {
       const cached = sessionStorage.getItem("ai_recommendations")
@@ -105,51 +114,72 @@ export default function DashboardPage() {
       }
     }
 
+    const fetchStats = async () => {
+      try {
+        const res = await fetch("/api/user/stats")
+        if (res.ok) {
+          const data = await res.json()
+          setDashboardStats(data)
+        }
+      } catch (error) {
+        console.error("Error fetching stats:", error)
+      }
+    }
+
+    const fetchExchangeNotifications = async () => {
+      try {
+        const response = await fetch("/api/exchange-requests?type=received")
+        if (!response.ok) return
+
+        const data = await response.json()
+        const requests = Array.isArray(data?.data) ? data.data : []
+        const pendingCount = requests.filter((request: { status?: string }) => request.status === "PENDING").length
+        setPendingExchangeCount(pendingCount)
+      } catch (error) {
+        console.error("Error fetching exchange notifications:", error)
+      }
+    }
+
     if (session) {
       fetchRecentSessions()
+      fetchStats()
+      fetchExchangeNotifications()
       if (!sessionStorage.getItem("ai_recommendations")) {
         fetchRecommendations()
       }
     } else {
       setLoadingSessions(false)
       setLoadingRecs(false)
+      setPendingExchangeCount(0)
     }
   }, [session])
 
   const stats = [
     { 
       label: "SKILLS SHARED", 
-      value: "3", 
+      value: dashboardStats ? String(dashboardStats.skillsShared) : "—", 
       icon: Share2, 
-      change: "+12%",
-      changeType: "positive",
       iconBg: "bg-blue-500/10",
       iconColor: "text-blue-500"
     },
     { 
       label: "ACTIVE EXCHANGES", 
-      value: "2", 
+      value: dashboardStats ? String(dashboardStats.activeExchanges) : "—", 
       icon: RefreshCw, 
-      change: "+8%",
-      changeType: "positive",
       iconBg: "bg-blue-500/10",
       iconColor: "text-blue-500"
     },
     { 
       label: "MASTERCLASSES", 
-      value: "5", 
+      value: dashboardStats ? String(dashboardStats.masterclasses) : "—", 
       icon: GraduationCap, 
-      change: "",
-      changeType: "neutral",
       iconBg: "bg-blue-500/10",
       iconColor: "text-blue-500"
     },
     { 
       label: "LEARNING HOURS", 
-      value: "12h", 
+      value: dashboardStats ? `${dashboardStats.learningHours}h` : "—", 
       icon: Clock, 
-      change: "+24%",
-      changeType: "positive",
       iconBg: "bg-blue-500/10",
       iconColor: "text-blue-500"
     },
@@ -199,9 +229,19 @@ export default function DashboardPage() {
               <Button variant="ghost" size="icon" className="relative">
                 <Search className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+                onClick={() => router.push("/dashboard/marketplace?tab=requests")}
+                aria-label="Open exchange requests"
+              >
                 <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                {pendingExchangeCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold leading-4.5 text-center">
+                    {pendingExchangeCount > 99 ? "99+" : pendingExchangeCount}
+                  </span>
+                )}
               </Button>
             </div>
           </div>
@@ -226,10 +266,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="mt-auto">
-                  {stat.change && (
-                    <span className="text-xs font-medium text-green-500">
-                      {stat.change} from last week
-                    </span>
+                  {!dashboardStats && (
+                    <span className="text-xs font-medium text-muted-foreground">Loading...</span>
                   )}
                 </div>
               </CardContent>
