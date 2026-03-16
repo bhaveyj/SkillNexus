@@ -146,6 +146,13 @@ export default function MarketplacePage() {
 
   const loading = !skillsData && !offersData
 
+  useEffect(() => {
+    const tabParam = searchParams.get("tab")
+    if (tabParam === "browse" || tabParam === "matches" || tabParam === "my-skills" || tabParam === "requests") {
+      setActiveTab(tabParam)
+    }
+  }, [searchParams])
+
   const refreshAll = () => {
     mutateSkills()
     mutateOffers()
