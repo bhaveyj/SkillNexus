@@ -4,26 +4,23 @@ import { NextResponse } from "next/server"
 
 // --- Rate limiter presets ---
 
+function createLimiter(limit: number, prefix: string): Ratelimit | null {
+  if (!redis) return null
+  return new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(limit, "1 m"),
+    prefix,
+  })
+}
+
 /** General API: 100 requests per 1-minute sliding window */
-export const generalLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(100, "1 m"),
-  prefix: "ratelimit:general",
-})
+export const generalLimiter = createLimiter(100, "ratelimit:general")
 
 /** Auth routes: 10 requests per 1-minute sliding window */
-export const authLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(10, "1 m"),
-  prefix: "ratelimit:auth",
-})
+export const authLimiter = createLimiter(10, "ratelimit:auth")
 
 /** AI endpoints: 20 requests per 1-minute sliding window */
-export const aiLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(20, "1 m"),
-  prefix: "ratelimit:ai",
-})
+export const aiLimiter = createLimiter(20, "ratelimit:ai")
 
 // --- Helper ---
 
@@ -33,8 +30,12 @@ function getClientIp(req: Request): string {
 
 export async function applyRateLimit(
   req: Request,
-  limiter: Ratelimit = generalLimiter
+  limiter: Ratelimit | null = generalLimiter
 ): Promise<NextResponse | null> {
+  if (!limiter) {
+    return null
+  }
+
   try {
     const ip = getClientIp(req)
     const { success, limit, remaining, reset } = await limiter.limit(ip)
