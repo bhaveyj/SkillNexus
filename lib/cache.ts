@@ -5,6 +5,7 @@ import { redis } from "@/lib/redis"
  */
 export async function getCache<T>(key: string): Promise<T | null> {
   try {
+    if (!redis) return null
     const data = await redis.get<T>(key)
     return data ?? null
   } catch (error) {
@@ -19,6 +20,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
  */
 export async function setCache<T>(key: string, value: T, ttlSeconds: number = 60): Promise<void> {
   try {
+    if (!redis) return
     await redis.set(key, JSON.stringify(value), { ex: ttlSeconds })
   } catch (error) {
     console.error(`[Cache] Failed to set key "${key}":`, error)
@@ -30,6 +32,7 @@ export async function setCache<T>(key: string, value: T, ttlSeconds: number = 60
  */
 export async function deleteCache(key: string): Promise<void> {
   try {
+    if (!redis) return
     await redis.del(key)
   } catch (error) {
     console.error(`[Cache] Failed to delete key "${key}":`, error)
