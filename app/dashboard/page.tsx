@@ -49,6 +49,13 @@ interface DashboardStats {
   learningHours: number
 }
 
+const AI_RECOMMENDATIONS_CACHE_PREFIX = "ai_recommendations:"
+
+const getRecommendationsCacheKey = (userId?: string) => {
+  if (!userId) return null
+  return `${AI_RECOMMENDATIONS_CACHE_PREFIX}${userId}`
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession()
   const router = useRouter()
@@ -56,23 +63,18 @@ export default function DashboardPage() {
   const [loadingSessions, setLoadingSessions] = useState(true)
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
   const [pendingExchangeCount, setPendingExchangeCount] = useState(0)
-  const [recommendations, setRecommendations] = useState<Recommendations | null>(() => {
-    if (typeof window !== "undefined") {
-      const cached = sessionStorage.getItem("ai_recommendations")
-      if (cached) return JSON.parse(cached) as Recommendations
-    }
-    return null
-  })
-  const [loadingRecs, setLoadingRecs] = useState(() => {
-    if (typeof window !== "undefined") {
-      return !sessionStorage.getItem("ai_recommendations")
-    }
-    return true
-  })
+  const [recommendations, setRecommendations] = useState<Recommendations | null>(null)
+  const [loadingRecs, setLoadingRecs] = useState(true)
   const [recsError, setRecsError] = useState<string | null>(null)
 
-  const fetchRecommendations = async () => {
-    sessionStorage.removeItem("ai_recommendations")
+  const fetchRecommendations = async (forceRefresh = false) => {
+    const cacheKey = getRecommendationsCacheKey(session?.user?.id)
+    if (!cacheKey) return
+
+    if (forceRefresh) {
+      localStorage.removeItem(cacheKey)
+    }
+
     setLoadingRecs(true)
     setRecsError(null)
     try {
@@ -81,7 +83,7 @@ export default function DashboardPage() {
         const data = await response.json()
         if (data.success) {
           setRecommendations(data.data)
-          sessionStorage.setItem("ai_recommendations", JSON.stringify(data.data))
+          localStorage.setItem(cacheKey, JSON.stringify(data.data))
         } else {
           setRecsError("Failed to get recommendations")
         }
@@ -144,10 +146,38 @@ export default function DashboardPage() {
       fetchRecentSessions()
       fetchStats()
       fetchExchangeNotifications()
-      if (!sessionStorage.getItem("ai_recommendations")) {
+
+      const cacheKey = getRecommendationsCacheKey(session.user?.id)
+      if (!cacheKey) {
+        setLoadingRecs(false)
+        return
+      }
+
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) {
+        try {
+          setRecommendations(JSON.parse(cached) as Recommendations)
+          setLoadingRecs(false)
+        } catch {
+          localStorage.removeItem(cacheKey)
+          fetchRecommendations()
+        }
+      } else {
         fetchRecommendations()
       }
     } else {
+      if (typeof window !== "undefined") {
+        const keysToRemove: string[] = []
+        for (let index = 0; index < localStorage.length; index += 1) {
+          const key = localStorage.key(index)
+          if (key?.startsWith(AI_RECOMMENDATIONS_CACHE_PREFIX)) {
+            keysToRemove.push(key)
+          }
+        }
+        keysToRemove.forEach((key) => localStorage.removeItem(key))
+      }
+
+      setRecommendations(null)
       setLoadingSessions(false)
       setLoadingRecs(false)
       setPendingExchangeCount(0)
@@ -290,7 +320,7 @@ export default function DashboardPage() {
               </div>
               <Button
                 size="sm"
-                onClick={fetchRecommendations}
+                onClick={() => fetchRecommendations(true)}
                 disabled={loadingRecs}
                 className="bg-blue-500 hover:bg-blue-600 text-white"
               >
