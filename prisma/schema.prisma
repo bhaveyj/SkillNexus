@@ -66,8 +66,8 @@ model User {
   
   // Add your custom user fields here
   bio           String?
-  skills        String[]
-  interests     String[]   // e.g. ["BACKEND", "DEVOPS", "AI_ML"]
+  skills        String[]   @default([])
+  interests     String[]   @default([]) // e.g. ["BACKEND", "DEVOPS", "AI_ML"]
   location      String?
   website       String?
   
