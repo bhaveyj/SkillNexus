@@ -101,7 +101,7 @@ export function Masterclasses() {
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {classes.map((c) => (
             <CardContainer key={c.id} className="inter-var w-full">
-              <CardBody className="bg-card relative group/card dark:hover:shadow-2xl dark:hover:shadow-primary/[0.1] border-border w-full min-h-[450px] h-full rounded-xl p-6 border flex flex-col">
+              <CardBody className="bg-card relative group/card dark:hover:shadow-2xl dark:hover:shadow-primary/[0.1] border-border w-full min-h-112.5 h-full rounded-xl p-6 border flex flex-col">
                 <CardItem
                   translateZ="50"
                   className="text-xl font-bold text-card-foreground mb-2"
