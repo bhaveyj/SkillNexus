@@ -7,25 +7,34 @@ export function HeroScrollDemo() {
     <div className="flex flex-col overflow-hidden">
       <ContainerScroll
         titleComponent={
-          <>
-            <h1 className="text-4xl font-semibold text-black dark:text-white">
-              Track your progress and <br />
-              <span className="text-4xl md:text-[6rem] font-bold mt-1 leading-none">
-                Masterclasses
-              </span>
+          <div className="space-y-2">
+            <p className="text-lg font-medium text-foreground/50 tracking-wide">
+              Track your progress and
+            </p>
+            <h1
+              className="text-5xl md:text-[5.5rem] font-extrabold leading-none tracking-tight"
+              style={{
+                background: "linear-gradient(135deg, #f0ebff 0%, #c4b5fd 40%, #a78bfa 70%, #8b5cf6 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              Masterclasses
             </h1>
-          </>
+          </div>
         }
       >
         <img
-          src={`/image.png`}
-          alt="hero"
+          src="/image.png"
+          alt="SkillNexus dashboard"
           height={720}
           width={1400}
-          className="mx-auto rounded-2xl object-cover h-full object-left-top"
+          className="mx-auto rounded-xl object-cover h-full object-left-top"
           draggable={false}
         />
       </ContainerScroll>
+      <div className="section-divider"/>
     </div>
   );
 }
