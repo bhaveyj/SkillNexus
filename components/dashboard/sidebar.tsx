@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import Link from "next/link";
 import { Sidebar as SidebarUI, SidebarBody, SidebarLink } from "../ui/sidebar";
 import {
   IconLayoutDashboard,
@@ -144,8 +145,8 @@ export function Sidebar() {
           <DialogHeader>
             <DialogTitle className="text-foreground">Sign out?</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              You'll need to sign in again to access your dashboard.
-            </DialogDescription>
+{"You'll need to sign in again to access your dashboard."}     
+       </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowLogout(false)}>
@@ -166,7 +167,7 @@ export function Sidebar() {
 
 export function LogoFull() {
   return (
-    <a href="/" className="flex items-center gap-2.5 group">
+<Link href="/" className="flex items-center gap-2.5 group">
       <div className="relative">
         <div className="absolute inset-0 rounded-lg bg-violet-500/20 blur group-hover:blur-md transition-all" />
         <img src="/logo.svg" alt="SkillNexus" className="relative h-7 w-7" />
@@ -178,17 +179,17 @@ export function LogoFull() {
       >
         SkillNexus
       </motion.span>
-    </a>
+    </Link>
   );
 }
 
 export function LogoIcon() {
   return (
-    <a href="/" className="flex items-center justify-center group">
+<Link href="/" className="flex items-center justify-center group">
       <div className="relative">
         <div className="absolute inset-0 rounded-lg bg-violet-500/20 blur group-hover:blur-md transition-all" />
         <img src="/logo.svg" alt="SkillNexus" className="relative h-7 w-7" />
       </div>
-    </a>
+    </Link>
   );
 }

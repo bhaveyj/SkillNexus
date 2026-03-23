@@ -189,7 +189,7 @@ export default function SignIn() {
               </form>
 
               <p className="text-center text-sm text-foreground/35">
-                Don't have an account?{" "}
+                {"Don't have an account?"}{" "}
                 <Link href="/auth/signup" className="text-violet-400 hover:text-violet-300 font-semibold transition-colors">
                   Sign up free
                 </Link>

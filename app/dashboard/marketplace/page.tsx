@@ -580,7 +580,7 @@ export default function MarketplacePage() {
 
                           {isAccepted && (
                             <div className="mt-3 flex items-center justify-between p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/12">
-                              <p className="text-xs text-emerald-400/80 font-semibold">✓ You're matched! Start chatting now.</p>
+                              <p className="text-xs text-emerald-400/80 font-semibold">{"✓ You're matched! Start chatting now."}</p>
                               <button
                                 onClick={() => setActiveTab("matches")}
                                 className="text-[11px] font-black text-emerald-300 hover:text-emerald-200 transition-colors underline underline-offset-2"

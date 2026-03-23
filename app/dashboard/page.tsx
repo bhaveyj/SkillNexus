@@ -43,9 +43,9 @@ function StatCard({ label, value, icon, accent, loading, trend }: {
 }) {
   const accents = {
     violet: { icon: "bg-violet-500/15 text-violet-400", border: "hover:border-violet-500/30", glow: "hover:shadow-violet-500/10", bar: "from-violet-500 to-violet-600", track: "bg-violet-500" },
-    rose:   { icon: "bg-rose-500/15 text-rose-400",     border: "hover:border-rose-500/30",   glow: "hover:shadow-rose-500/10",   bar: "from-rose-500 to-rose-600",   track: "bg-rose-500" },
-    cyan:   { icon: "bg-cyan-500/15 text-cyan-400",     border: "hover:border-cyan-500/30",   glow: "hover:shadow-cyan-500/10",   bar: "from-cyan-500 to-cyan-600",   track: "bg-cyan-500" },
-    amber:  { icon: "bg-amber-500/15 text-amber-400",   border: "hover:border-amber-500/30",  glow: "hover:shadow-amber-500/10",  bar: "from-amber-500 to-amber-600", track: "bg-amber-500" },
+    rose: { icon: "bg-rose-500/15 text-rose-400", border: "hover:border-rose-500/30", glow: "hover:shadow-rose-500/10", bar: "from-rose-500 to-rose-600", track: "bg-rose-500" },
+    cyan: { icon: "bg-cyan-500/15 text-cyan-400", border: "hover:border-cyan-500/30", glow: "hover:shadow-cyan-500/10", bar: "from-cyan-500 to-cyan-600", track: "bg-cyan-500" },
+    amber: { icon: "bg-amber-500/15 text-amber-400", border: "hover:border-amber-500/30", glow: "hover:shadow-amber-500/10", bar: "from-amber-500 to-amber-600", track: "bg-amber-500" },
   };
   const a = accents[accent];
   return (
@@ -110,13 +110,13 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const router = useRouter();
 
-  const [recentSessions,  setRecentSessions]  = useState<RegisteredSession[]>([]);
-  const [loadingSessions, setLoadingSessions]  = useState(true);
-  const [stats,           setStats]           = useState<DashboardStats | null>(null);
-  const [pendingCount,    setPendingCount]     = useState(0);
-  const [recs,            setRecs]            = useState<Recommendations | null>(null);
-  const [loadingRecs,     setLoadingRecs]      = useState(true);
-  const [recsError,       setRecsError]        = useState<string | null>(null);
+  const [recentSessions, setRecentSessions] = useState<RegisteredSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [recs, setRecs] = useState<Recommendations | null>(null);
+  const [loadingRecs, setLoadingRecs] = useState(true);
+  const [recsError, setRecsError] = useState<string | null>(null);
 
   const fetchRecs = async (force = false) => {
     const key = session?.user?.id ? `${CACHE_PREFIX}${session.user.id}` : null;
@@ -163,24 +163,24 @@ export default function DashboardPage() {
   const initials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
   const STATS = [
-    { label: "Skills Shared",    value: stats?.skillsShared ?? "—",                 icon: <Share2 size={16} />,        accent: "violet" as const, trend: stats ? { label: `${stats.skillsShared > 0 ? "active" : "add skills"}`, up: stats.skillsShared > 0 } : undefined },
-    { label: "Active Exchanges", value: stats?.activeExchanges ?? "—",               icon: <RefreshCw size={16} />,     accent: "rose" as const,   trend: stats ? { label: stats.activeExchanges > 0 ? `${stats.activeExchanges} ongoing` : "browse marketplace", up: stats.activeExchanges > 0 } : undefined },
-    { label: "Masterclasses",    value: stats?.masterclasses ?? "—",                 icon: <GraduationCap size={16} />, accent: "cyan" as const,   trend: stats ? { label: stats.masterclasses > 0 ? "sessions joined" : "explore sessions", up: stats.masterclasses > 0 } : undefined },
-    { label: "Learning Hours",   value: stats ? `${stats.learningHours}h` : "—",     icon: <Clock size={16} />,         accent: "amber" as const,  trend: stats ? { label: stats.learningHours > 0 ? "hours invested" : "start learning", up: stats.learningHours > 0 } : undefined },
+    { label: "Skills Shared", value: stats?.skillsShared ?? "—", icon: <Share2 size={16} />, accent: "violet" as const, trend: stats ? { label: `${stats.skillsShared > 0 ? "active" : "add skills"}`, up: stats.skillsShared > 0 } : undefined },
+    { label: "Active Exchanges", value: stats?.activeExchanges ?? "—", icon: <RefreshCw size={16} />, accent: "rose" as const, trend: stats ? { label: stats.activeExchanges > 0 ? `${stats.activeExchanges} ongoing` : "browse marketplace", up: stats.activeExchanges > 0 } : undefined },
+    { label: "Masterclasses", value: stats?.masterclasses ?? "—", icon: <GraduationCap size={16} />, accent: "cyan" as const, trend: stats ? { label: stats.masterclasses > 0 ? "sessions joined" : "explore sessions", up: stats.masterclasses > 0 } : undefined },
+    { label: "Learning Hours", value: stats ? `${stats.learningHours}h` : "—", icon: <Clock size={16} />, accent: "amber" as const, trend: stats ? { label: stats.learningHours > 0 ? "hours invested" : "start learning", up: stats.learningHours > 0 } : undefined },
   ];
 
   const QUICK = [
     { label: "Browse Marketplace", href: "/dashboard/marketplace", icon: <ShoppingBag size={16} />, accent: "violet" as const, desc: "Find skill partners" },
-    { label: "View Masterclasses", href: "/dashboard/masterclasses", icon: <BookOpen size={16} />,  accent: "rose" as const,   desc: "Learn from experts" },
-    { label: "Edit Profile",       href: "/dashboard/profile",     icon: <UserCircle size={16} />,  accent: "cyan" as const,   desc: "Update your skills" },
+    { label: "View Masterclasses", href: "/dashboard/masterclasses", icon: <BookOpen size={16} />, accent: "rose" as const, desc: "Learn from experts" },
+    { label: "Edit Profile", href: "/dashboard/profile", icon: <UserCircle size={16} />, accent: "cyan" as const, desc: "Update your skills" },
   ];
 
   const accentPill = (color: string) => ({
     violet: "bg-violet-500/10 text-violet-300 border border-violet-500/20",
-    rose:   "bg-rose-500/10 text-rose-300 border border-rose-500/20",
-    cyan:   "bg-cyan-500/10 text-cyan-300 border border-cyan-500/20",
-    amber:  "bg-amber-500/10 text-amber-300 border border-amber-500/20",
-    green:  "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20",
+    rose: "bg-rose-500/10 text-rose-300 border border-rose-500/20",
+    cyan: "bg-cyan-500/10 text-cyan-300 border border-cyan-500/20",
+    amber: "bg-amber-500/10 text-amber-300 border border-amber-500/20",
+    green: "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20",
     orange: "bg-orange-500/10 text-orange-300 border border-orange-500/20",
   } as Record<string, string>)[color] || "";
 
@@ -253,8 +253,9 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-center">
                       <p className="text-sm font-semibold">No recommendations yet</p>
-                      <p className="text-xs mt-0.5">Click "Get Recommendations" to receive AI-powered suggestions</p>
-                    </div>
+                      <p className="text-xs mt-0.5">
+                        {"Click \"Get Recommendations\" to receive AI-powered suggestions"}
+                      </p>                    </div>
                   </div>
                 )}
                 {loadingRecs && (
@@ -339,8 +340,8 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-3">
                         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center",
                           q.accent === "violet" ? "bg-violet-500/12 text-violet-400" :
-                          q.accent === "rose"   ? "bg-rose-500/12 text-rose-400" :
-                                                  "bg-cyan-500/12 text-cyan-400",
+                            q.accent === "rose" ? "bg-rose-500/12 text-rose-400" :
+                              "bg-cyan-500/12 text-cyan-400",
                         )}>
                           {q.icon}
                         </div>
@@ -362,7 +363,9 @@ export default function DashboardPage() {
                 <p className="text-xs font-bold text-violet-300">Learning streak</p>
               </div>
               <p className="text-3xl font-black text-foreground mb-1">🔥 Active</p>
-              <p className="text-xs text-foreground/35">Keep going — you're on a roll!</p>
+              <p className="text-xs text-foreground/35">
+                {"Keep going — you're on a roll!"}
+              </p>
             </div>
           </div>
         </div>

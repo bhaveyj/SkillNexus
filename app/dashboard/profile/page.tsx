@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 interface Skill { id: string; name: string; category: string; }
 interface Offer { id: string; skillId: string; skill: Skill; }
 
-const INTERESTS = ["BACKEND","FRONTEND","DEVOPS","CLOUD","DATABASE","AI_ML","DATA_SCIENCE","MOBILE","CYBERSECURITY","BLOCKCHAIN","GAME_DEVELOPMENT","UI_UX","TESTING","WEB_DEVELOPMENT","OTHER"] as const;
+const INTERESTS = ["BACKEND", "FRONTEND", "DEVOPS", "CLOUD", "DATABASE", "AI_ML", "DATA_SCIENCE", "MOBILE", "CYBERSECURITY", "BLOCKCHAIN", "GAME_DEVELOPMENT", "UI_UX", "TESTING", "WEB_DEVELOPMENT", "OTHER"] as const;
 const fmt = (s: string) => s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
 
 const SKILL_CATEGORY_COLOR: Record<string, string> = {
@@ -97,10 +97,10 @@ export default function ProfilePage() {
   );
 
   const SOCIAL_DEFS = [
-    { key: "github",   label: "GitHub",    icon: <Github size={16} />,   placeholder: "https://github.com/username",       prefix: "https://github.com/" },
-    { key: "linkedin", label: "LinkedIn",  icon: <Linkedin size={16} />, placeholder: "https://linkedin.com/in/username",  prefix: "https://linkedin.com/in/" },
-    { key: "twitter",  label: "Twitter/X", icon: <Twitter size={16} />,  placeholder: "https://x.com/username",            prefix: "https://x.com/" },
-    { key: "gmail",    label: "Email",     icon: <Mail size={16} />,     placeholder: "you@gmail.com",                     prefix: "mailto:" },
+    { key: "github", label: "GitHub", icon: <Github size={16} />, placeholder: "https://github.com/username", prefix: "https://github.com/" },
+    { key: "linkedin", label: "LinkedIn", icon: <Linkedin size={16} />, placeholder: "https://linkedin.com/in/username", prefix: "https://linkedin.com/in/" },
+    { key: "twitter", label: "Twitter/X", icon: <Twitter size={16} />, placeholder: "https://x.com/username", prefix: "https://x.com/" },
+    { key: "gmail", label: "Email", icon: <Mail size={16} />, placeholder: "you@gmail.com", prefix: "mailto:" },
   ] as const;
 
   const getSocialHref = (key: string, val: string) => {
@@ -169,7 +169,7 @@ export default function ProfilePage() {
                 <div className="space-y-3">
                   <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4}
                     className={inputCls("resize-none")}
-                    placeholder="Tell others about yourself, your expertise, and what you're looking to learn…" />
+                    placeholder={"Tell others about yourself, your expertise, and what you're looking to learn…"} />
                   <div className="flex gap-2">
                     <Button size="sm" className="h-8 text-xs" onClick={() => patch({ bio }).then(() => setEditingBio(false))}>
                       <Check size={12} /> Save
@@ -261,8 +261,9 @@ export default function ProfilePage() {
             }>
               {editingInterests ? (
                 <div className="space-y-4">
-                  <p className="text-xs text-foreground/40">Select areas you're interested in</p>
-                  <div className="flex flex-wrap gap-2">
+                  <p className="text-xs text-foreground/40">
+                    {"Select areas you're interested in"}
+                  </p>                  <div className="flex flex-wrap gap-2">
                     {INTERESTS.map(i => (
                       <button key={i}
                         onClick={() => setInterests(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
