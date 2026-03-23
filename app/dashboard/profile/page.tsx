@@ -1,550 +1,426 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { X, Search, Edit2, Check, Github, Linkedin, Twitter, Mail } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface Skill {
-  id: string
-  name: string
-  category: string
+interface Skill { id: string; name: string; category: string; }
+interface Offer { id: string; skillId: string; skill: Skill; }
+
+const INTERESTS = ["BACKEND","FRONTEND","DEVOPS","CLOUD","DATABASE","AI_ML","DATA_SCIENCE","MOBILE","CYBERSECURITY","BLOCKCHAIN","GAME_DEVELOPMENT","UI_UX","TESTING","WEB_DEVELOPMENT","OTHER"] as const;
+const fmt = (s: string) => s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+
+const SKILL_CATEGORY_COLOR: Record<string, string> = {
+  DEVOPS: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+  CLOUD: "bg-sky-500/10 text-sky-400 border-sky-500/20",
+  WEB_DEVELOPMENT: "bg-violet-500/10 text-violet-400 border-violet-500/20",
+  FRONTEND: "bg-pink-500/10 text-pink-400 border-pink-500/20",
+  BACKEND: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+  MOBILE: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  DATABASE: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  DATA_SCIENCE: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  AI_ML: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+  UI_UX: "bg-teal-500/10 text-teal-400 border-teal-500/20",
+  OTHER: "bg-white/5 text-foreground/40 border-white/8",
+};
+
+function SectionCard({ title, action, children, className }: {
+  title: string; action?: React.ReactNode; children: React.ReactNode; className?: string;
+}) {
+  return (
+    <div className={cn("relative rounded-2xl overflow-hidden bg-white/[0.03] backdrop-blur-xl border border-white/[0.07]", className)}>
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/20 to-transparent" />
+      <div className="px-6 py-4 border-b border-white/[0.05] flex items-center justify-between">
+        <h3 className="text-sm font-bold text-foreground/70 uppercase tracking-wider">{title}</h3>
+        {action}
+      </div>
+      <div className="p-6">{children}</div>
+    </div>
+  );
 }
 
-interface Offer {
-  id: string
-  skillId: string
-  skill: Skill
+function inputCls(extra = "") {
+  return cn(
+    "w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-foreground",
+    "placeholder:text-foreground/20 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/15 transition-all",
+    extra,
+  );
 }
-
-const INTEREST_OPTIONS = [
-  "BACKEND",
-  "FRONTEND",
-  "DEVOPS",
-  "CLOUD",
-  "DATABASE",
-  "AI_ML",
-  "DATA_SCIENCE",
-  "MOBILE",
-  "CYBERSECURITY",
-  "BLOCKCHAIN",
-  "GAME_DEVELOPMENT",
-  "UI_UX",
-  "TESTING",
-  "WEB_DEVELOPMENT",
-  "OTHER",
-] as const
 
 export default function ProfilePage() {
-  const { data: session } = useSession()
-  const [isEditing, setIsEditing] = useState(false)
-  const [bio, setBio] = useState("")
-  const [isEditingSocials, setIsEditingSocials] = useState(false)
-  const [socials, setSocials] = useState({
-    github: "",
-    linkedin: "",
-    twitter: "",
-    gmail: ""
-  })
-  const [interests, setInterests] = useState<string[]>([])
-  const [isEditingInterests, setIsEditingInterests] = useState(false)
-  const [userOffers, setUserOffers] = useState<Offer[]>([])
-  const [allSkills, setAllSkills] = useState<Skill[]>([])
-  const [isLoadingSkills, setIsLoadingSkills] = useState(true)
-  const [skillSearch, setSkillSearch] = useState("")
-  const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false)
+  const { data: session } = useSession();
+  const [bio, setBio] = useState("");
+  const [editingBio, setEditingBio] = useState(false);
+  const [socials, setSocials] = useState({ github: "", linkedin: "", twitter: "", gmail: "" });
+  const [editingSocials, setEditingSocials] = useState(false);
+  const [interests, setInterests] = useState<string[]>([]);
+  const [editingInterests, setEditingInterests] = useState(false);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [allSkills, setAllSkills] = useState<Skill[]>([]);
+  const [skillSearch, setSkillSearch] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [emailNotif, setEmailNotif] = useState(true);
+  const [publicProfile, setPublicProfile] = useState(true);
 
   useEffect(() => {
-    if (session?.user?.email) {
-      fetchUserProfile()
-      fetchUserOffers()
-      fetchAllSkills()
-    }
-  }, [session])
-
-  const fetchUserProfile = async () => {
-    try {
-      const response = await fetch("/api/user/profile")
-      if (response.ok) {
-        const data = await response.json()
-        setBio(data.bio || "")
-        setSocials({
-          github: data.github || "",
-          linkedin: data.linkedin || "",
-          twitter: data.twitter || "",
-          gmail: data.gmail || ""
-        })
-        setInterests(data.interests || [])
+    if (!session?.user?.email) return;
+    fetch("/api/user/profile").then(r => r.ok ? r.json() : null).then(data => {
+      if (data) {
+        setBio(data.bio || "");
+        setSocials({ github: data.github || "", linkedin: data.linkedin || "", twitter: data.twitter || "", gmail: data.gmail || "" });
+        setInterests(data.interests || []);
       }
-    } catch (error) {
-      console.error("Failed to fetch profile:", error)
-    }
-  }
+    });
+    fetch("/api/offers").then(r => r.ok ? r.json() : null).then(data => { if (data?.success) setOffers(data.data); });
+    fetch("/api/skills").then(r => r.ok ? r.json() : null).then(data => { if (data?.success) setAllSkills(data.data); });
+  }, [session]);
 
-  const fetchUserOffers = async () => {
-    try {
-      const response = await fetch("/api/offers")
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success) {
-          setUserOffers(data.data)
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch user offers:", error)
-    } finally {
-      setIsLoadingSkills(false)
-    }
-  }
-
-  const fetchAllSkills = async () => {
-    try {
-      const response = await fetch("/api/skills")
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success) {
-          setAllSkills(data.data)
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch skills:", error)
-    }
-  }
+  const patch = (body: object) =>
+    fetch("/api/user/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
   const addSkill = async (skillId: string) => {
-    try {
-      const response = await fetch("/api/offers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skillId })
-      })
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success) {
-          setUserOffers([...userOffers, data.data])
-        }
-      }
-    } catch (error) {
-      console.error("Failed to add skill:", error)
-    }
-  }
+    const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ skillId }) });
+    const data = await res.json();
+    if (data.success) { setOffers(prev => [...prev, data.data]); setSkillSearch(""); setDropdownOpen(false); }
+  };
 
   const removeSkill = async (offerId: string) => {
-    try {
-      const response = await fetch(`/api/offers?offerId=${offerId}`, {
-        method: "DELETE"
-      })
-      if (response.ok) {
-        setUserOffers(userOffers.filter(offer => offer.id !== offerId))
-      }
-    } catch (error) {
-      console.error("Failed to remove skill:", error)
-    }
-  }
+    const res = await fetch(`/api/offers?offerId=${offerId}`, { method: "DELETE" });
+    if (res.ok) setOffers(prev => prev.filter(o => o.id !== offerId));
+  };
 
-  const saveSocials = async () => {
-    try {
-      const response = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ socials })
-      })
-      if (response.ok) {
-        setIsEditingSocials(false)
-      }
-    } catch (error) {
-      console.error("Failed to update socials:", error)
-    }
-  }
+  const available = allSkills.filter(s =>
+    !offers.some(o => o.skillId === s.id) &&
+    s.name.toLowerCase().includes(skillSearch.toLowerCase())
+  );
 
-  const saveBio = async () => {
-    try {
-      const response = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bio })
-      })
-      if (response.ok) {
-        setIsEditing(false)
-      }
-    } catch (error) {
-      console.error("Failed to update bio:", error)
-    }
-  }
-  const toggleInterest = (interest: string) => {
-    setInterests((prev) =>
-      prev.includes(interest)
-        ? prev.filter((i) => i !== interest)
-        : [...prev, interest]
-    )
-  }
+  const SOCIAL_DEFS = [
+    { key: "github",   label: "GitHub",    icon: <Github size={16} />,   placeholder: "https://github.com/username",       prefix: "https://github.com/" },
+    { key: "linkedin", label: "LinkedIn",  icon: <Linkedin size={16} />, placeholder: "https://linkedin.com/in/username",  prefix: "https://linkedin.com/in/" },
+    { key: "twitter",  label: "Twitter/X", icon: <Twitter size={16} />,  placeholder: "https://x.com/username",            prefix: "https://x.com/" },
+    { key: "gmail",    label: "Email",     icon: <Mail size={16} />,     placeholder: "you@gmail.com",                     prefix: "mailto:" },
+  ] as const;
 
-  const saveInterests = async () => {
-    try {
-      const response = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ interests })
-      })
-      if (response.ok) {
-        setIsEditingInterests(false)
-      }
-    } catch (error) {
-      console.error("Failed to update interests:", error)
-    }
-  }
-  // Get skill IDs that user already has
-  const userSkillIds = userOffers.map(offer => offer.skillId)
-  
-  // Filter available skills (skills user doesn't have yet) and apply search filter
-  const availableSkills = allSkills.filter(skill => !userSkillIds.includes(skill.id))
-  const filteredSkills = availableSkills.filter(skill => 
-    skill.name.toLowerCase().includes(skillSearch.toLowerCase())
-  )
+  const getSocialHref = (key: string, val: string) => {
+    if (!val) return null;
+    if (key === "gmail") return `mailto:${val}`;
+    return val.startsWith("http") ? val : `https://${val}`;
+  };
 
-  const handleAddSkill = async (skillId: string) => {
-    await addSkill(skillId)
-    setSkillSearch("")
-    setIsSkillDropdownOpen(false)
-  }
+  const userName = session?.user?.name || "User";
+  const userInitial = userName.charAt(0).toUpperCase();
 
   return (
-    <div className="p-8 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">My Profile</h1>
+    <div className="flex-1 overflow-auto">
+      <div className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#080612]/80 backdrop-blur-xl">
+        <div className="px-6 lg:px-8 h-16 flex items-center">
+          <h1 className="text-xl font-bold">My Profile</h1>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content - Left Side */}
-        <div className="lg:col-span-2 space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center gap-6">
-              <img 
-                src={session?.user?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name}`} 
-                alt={session?.user?.name || "User"} 
-                className="w-24 h-24 rounded-full" 
-              />
-              <div>
-                <h2 className="text-2xl font-bold">{session?.user?.name}</h2>
-                <p className="text-muted-foreground">{session?.user?.email}</p>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium block mb-2">Bio</label>
-              {isEditing ? (
-                <div className="space-y-2">
-                  <textarea
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    className="w-full px-3 py-2 bg-input border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    rows={4}
-                  />
-                  <div className="flex gap-2">
-                    <Button onClick={saveBio}>Save</Button>
-                    <Button variant="outline" onClick={() => setIsEditing(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
+      <div className="p-6 lg:p-8">
+        <div className="relative rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-violet-500/8 via-purple-500/4 to-rose-500/5 border border-violet-500/15 p-6">
+          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
+          <div className="flex items-center gap-5">
+            <div className="relative shrink-0">
+              {session?.user?.image ? (
+                <img src={session.user.image} alt={userName}
+                  className="w-20 h-20 rounded-2xl ring-2 ring-violet-500/25 object-cover shadow-xl shadow-violet-500/10" />
               ) : (
-                <div className="p-4 bg-card border border-border rounded-md">
-                  <p className="text-muted-foreground">{bio || "No bio added yet"}</p>
-                  <Button
-                    size="sm"
-                    className="mt-3 cursor-pointer"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    Edit Bio
-                  </Button>
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-600 to-violet-800 flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-violet-500/20 ring-2 ring-violet-500/25">
+                  {userInitial}
                 </div>
               )}
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-400 border-2 border-[#080612]" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Skills</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-medium mb-3">My Skills</h3>
-                {isLoadingSkills ? (
-                  <p className="text-muted-foreground text-sm">Loading skills...</p>
-                ) : userOffers.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {userOffers.map((offer) => (
-                      <Badge 
-                        key={offer.id} 
-                        className="cursor-pointer bg-blue-500/20 text-blue-500 border border-blue-500/30 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors group"
-                        onClick={() => removeSkill(offer.id)}
-                      >
-                        {offer.skill.name}
-                        <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">×</span>
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-sm">No skills added yet. Add some below!</p>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl font-black text-foreground tracking-tight">{userName}</h2>
+              <p className="text-sm text-foreground/40 mt-0.5">{session?.user?.email}</p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {offers.slice(0, 5).map(o => (
+                  <span key={o.id} className={cn("px-2.5 py-1 rounded-full text-[11px] font-bold border", SKILL_CATEGORY_COLOR[o.skill.category] || SKILL_CATEGORY_COLOR.OTHER)}>
+                    {o.skill.name}
+                  </span>
+                ))}
+                {offers.length > 5 && (
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold border bg-white/5 text-foreground/35 border-white/8">
+                    +{offers.length - 5} more
+                  </span>
                 )}
               </div>
-
-              <div>
-                <h3 className="font-medium mb-3">Add More Skills</h3>
-                <div className="relative z-50">
-                  <div className="relative">
-                    <svg 
-                      className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input
-                      type="text"
-                      placeholder="Search skills to add..."
-                      value={skillSearch}
-                      onChange={(e) => {
-                        setSkillSearch(e.target.value)
-                        setIsSkillDropdownOpen(true)
-                      }}
-                      onFocus={() => setIsSkillDropdownOpen(true)}
-                      className="w-full pl-10 pr-4 py-2 bg-input border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  
-                  {isSkillDropdownOpen && skillSearch && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-40" 
-                        onClick={() => setIsSkillDropdownOpen(false)}
-                      />
-                      <div className="absolute z-50 w-full mt-1 bg-zinc-900 border border-border rounded-md shadow-xl max-h-60 overflow-auto">
-                        {filteredSkills.length > 0 ? (
-                          filteredSkills.slice(0, 10).map((skill) => (
-                            <button
-                              key={skill.id}
-                              onClick={() => handleAddSkill(skill.id)}
-                              className="w-full px-4 py-2 text-left hover:bg-accent transition-colors flex items-center gap-2 cursor-pointer"
-                            >
-                              <span className="text-primary">+</span>
-                              <span>{skill.name}</span>
-                              <span className="text-xs text-muted-foreground ml-auto">{skill.category.replace(/_/g, ' ')}</span>
-                            </button>
-                          ))
-                        ) : (
-                          <p className="px-4 py-2 text-muted-foreground text-sm">No matching skills found</p>
-                        )}
-                        {filteredSkills.length > 10 && (
-                          <p className="px-4 py-2 text-muted-foreground text-xs border-t border-border">
-                            +{filteredSkills.length - 10} more skills. Keep typing to narrow down.
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Interests</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isEditingInterests ? (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">Select areas you&apos;re interested in pursuing:</p>
-                <div className="flex flex-wrap gap-2">
-                  {INTEREST_OPTIONS.map((interest) => (
-                    <Badge
-                      key={interest}
-                      className={`cursor-pointer transition-colors ${
-                        interests.includes(interest)
-                          ? "bg-blue-500/20 text-blue-500 border border-blue-500/30"
-                          : "bg-muted text-muted-foreground border border-border hover:bg-accent"
-                      }`}
-                      onClick={() => toggleInterest(interest)}
-                    >
-                      {interest.replace(/_/g, " ")}
-                      {interests.includes(interest) && <span className="ml-1">✓</span>}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <Button onClick={saveInterests}>Save</Button>
-                  <Button variant="outline" onClick={() => setIsEditingInterests(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                {interests.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {interests.map((interest) => (
-                      <Badge
-                        key={interest}
-                        className="bg-blue-500/20 text-blue-500 border border-blue-500/30"
-                      >
-                        {interest.replace(/_/g, " ")}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-sm mb-4">No interests selected yet</p>
-                )}
-                <Button
-                  size="sm"
-                  className="cursor-pointer"
-                  onClick={() => setIsEditingInterests(true)}
-                >
-                  Edit Interests
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Preferences</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 border border-border rounded-md">
-              <div>
-                <p className="font-medium">Email Notifications</p>
-                <p className="text-sm text-muted-foreground">Get notified about new opportunities</p>
-              </div>
-              <input type="checkbox" defaultChecked className="w-5 h-5" />
-            </div>
-            <div className="flex items-center justify-between p-4 border border-border rounded-md">
-              <div>
-                <p className="font-medium">Public Profile</p>
-                <p className="text-sm text-muted-foreground">Make your profile visible to others</p>
-              </div>
-              <input type="checkbox" defaultChecked className="w-5 h-5" />
-            </div>
-          </CardContent>
-        </Card>
+          </div>
         </div>
 
-        {/* Socials Section - Right Side */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Social Links</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isEditingSocials ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium block mb-2">GitHub</label>
-                    <input
-                      type="url"
-                      value={socials.github}
-                      onChange={(e) => setSocials({ ...socials, github: e.target.value })}
-                      placeholder="https://github.com/username"
-                      className="w-full px-3 py-2 bg-input border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium block mb-2">LinkedIn</label>
-                    <input
-                      type="url"
-                      value={socials.linkedin}
-                      onChange={(e) => setSocials({ ...socials, linkedin: e.target.value })}
-                      placeholder="https://linkedin.com/in/username"
-                      className="w-full px-3 py-2 bg-input border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium block mb-2">X (formerly Twitter)</label>
-                    <input
-                      type="url"
-                      value={socials.twitter}
-                      onChange={(e) => setSocials({ ...socials, twitter: e.target.value })}
-                      placeholder="https://x.com/username"
-                      className="w-full px-3 py-2 bg-input border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium block mb-2">Gmail</label>
-                    <input
-                      type="email"
-                      value={socials.gmail}
-                      onChange={(e) => setSocials({ ...socials, gmail: e.target.value })}
-                      placeholder="your.email@gmail.com"
-                      className="w-full px-3 py-2 bg-input border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="flex gap-2 pt-2">
-                    <Button onClick={saveSocials} className="flex-1">Save</Button>
-                    <Button variant="outline" onClick={() => setIsEditingSocials(false)} className="flex-1">
-                      Cancel
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2 space-y-5">
+
+            <SectionCard title="Bio" action={
+              !editingBio ? (
+                <button onClick={() => setEditingBio(true)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">
+                  <Edit2 size={12} /> Edit
+                </button>
+              ) : null
+            }>
+              {editingBio ? (
+                <div className="space-y-3">
+                  <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4}
+                    className={inputCls("resize-none")}
+                    placeholder="Tell others about yourself, your expertise, and what you're looking to learn…" />
+                  <div className="flex gap-2">
+                    <Button size="sm" className="h-8 text-xs" onClick={() => patch({ bio }).then(() => setEditingBio(false))}>
+                      <Check size={12} /> Save
                     </Button>
+                    <Button size="sm" variant="glass" className="h-8 text-xs" onClick={() => setEditingBio(false)}>Cancel</Button>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {socials.github && (
-                    <a href={socials.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 border border-border rounded-md hover:bg-accent transition-colors">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                      </svg>
-                      <span className="text-sm">GitHub</span>
-                    </a>
+                <div>
+                  {bio ? (
+                    <p className="text-sm text-foreground/65 leading-relaxed">{bio}</p>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 py-6 text-foreground/25">
+                      <p className="text-sm font-semibold">No bio added yet</p>
+                      <button onClick={() => setEditingBio(true)}
+                        className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">
+                        + Add your bio
+                      </button>
+                    </div>
                   )}
-                  {socials.linkedin && (
-                    <a href={socials.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 border border-border rounded-md hover:bg-accent transition-colors">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
-                      </svg>
-                      <span className="text-sm">LinkedIn</span>
-                    </a>
-                  )}
-                  {socials.twitter && (
-                    <a href={socials.twitter} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 border border-border rounded-md hover:bg-accent transition-colors">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                      </svg>
-                      <span className="text-sm">X</span>
-                    </a>
-                  )}
-                  {socials.gmail && (
-                    <a href={`mailto:${socials.gmail}`} className="flex items-center gap-3 p-3 border border-border rounded-md hover:bg-accent transition-colors">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
-                      </svg>
-                      <span className="text-sm">Gmail</span>
-                    </a>
-                  )}
-                  {!socials.github && !socials.linkedin && !socials.twitter && !socials.gmail && (
-                    <p className="text-muted-foreground text-sm">No social links added yet</p>
-                  )}
-                  <Button
-                    size="sm"
-                    className="w-full mt-4 cursor-pointer"
-                    onClick={() => setIsEditingSocials(true)}
-                  >
-                    Edit Social Links
-                  </Button>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </SectionCard>
+
+            <SectionCard title="Skills">
+              <div className="space-y-5">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/30 mb-3">My Skills</p>
+                  {offers.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {offers.map(o => (
+                        <button key={o.id}
+                          onClick={() => removeSkill(o.id)}
+                          className={cn(
+                            "group inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200",
+                            "hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-500/20",
+                            SKILL_CATEGORY_COLOR[o.skill.category] || SKILL_CATEGORY_COLOR.OTHER,
+                          )}
+                        >
+                          {o.skill.name}
+                          <X size={10} className="opacity-40 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-foreground/30">No skills added yet. Search below to add some!</p>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/30 mb-3">Add More Skills</p>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/35" />
+                    <input
+                      value={skillSearch}
+                      onChange={e => { setSkillSearch(e.target.value); setDropdownOpen(true); }}
+                      onFocus={() => setDropdownOpen(true)}
+                      placeholder="Search skills to add…"
+                      className={cn(inputCls(), "pl-9")}
+                    />
+                    {dropdownOpen && skillSearch && available.length > 0 && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                        <div className="absolute z-50 w-full mt-1.5 bg-[#0d0a1e] border border-white/[0.08] rounded-xl shadow-2xl max-h-52 overflow-auto">
+                          {available.slice(0, 10).map(skill => (
+                            <button key={skill.id} onClick={() => addSkill(skill.id)}
+                              className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-violet-500/8 transition-colors group">
+                              <span className="text-sm font-semibold text-foreground/80 group-hover:text-foreground">{skill.name}</span>
+                              <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", SKILL_CATEGORY_COLOR[skill.category] || SKILL_CATEGORY_COLOR.OTHER)}>
+                                {fmt(skill.category)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Interests" action={
+              !editingInterests ? (
+                <button onClick={() => setEditingInterests(true)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">
+                  <Edit2 size={12} /> Edit
+                </button>
+              ) : null
+            }>
+              {editingInterests ? (
+                <div className="space-y-4">
+                  <p className="text-xs text-foreground/40">Select areas you're interested in</p>
+                  <div className="flex flex-wrap gap-2">
+                    {INTERESTS.map(i => (
+                      <button key={i}
+                        onClick={() => setInterests(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200",
+                          interests.includes(i)
+                            ? "bg-violet-500/15 border-violet-500/30 text-violet-300"
+                            : "bg-white/[0.03] border-white/[0.07] text-foreground/45 hover:text-foreground/70",
+                        )}>
+                        {fmt(i)} {interests.includes(i) && "✓"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="h-8 text-xs" onClick={() => patch({ interests }).then(() => setEditingInterests(false))}>
+                      <Check size={12} /> Save
+                    </Button>
+                    <Button size="sm" variant="glass" className="h-8 text-xs" onClick={() => setEditingInterests(false)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : interests.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {interests.map(i => (
+                    <span key={i} className="px-3 py-1.5 rounded-xl text-xs font-bold border bg-violet-500/10 text-violet-300 border-violet-500/20">
+                      {fmt(i)}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 py-6 text-foreground/25">
+                  <p className="text-sm font-semibold">No interests selected yet</p>
+                  <button onClick={() => setEditingInterests(true)}
+                    className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">
+                    + Add your interests
+                  </button>
+                </div>
+              )}
+            </SectionCard>
+
+            <SectionCard title="Preferences">
+              <div className="space-y-3">
+                {[
+                  { key: "emailNotif" as const, label: "Email Notifications", desc: "Get notified about new exchange opportunities", icon: "🔔", state: emailNotif, set: setEmailNotif },
+                  { key: "publicProfile" as const, label: "Public Profile", desc: "Make your profile visible to other users", icon: "👁️", state: publicProfile, set: setPublicProfile },
+                ].map(pref => (
+                  <div
+                    key={pref.key}
+                    className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.09] transition-all duration-200 group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white/[0.04] flex items-center justify-center text-sm">
+                        {pref.icon}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{pref.label}</p>
+                        <p className="text-xs text-foreground/35 mt-0.5">{pref.desc}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={pref.state}
+                      onClick={() => pref.set(!pref.state)}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
+                        "transition-colors duration-200 ease-in-out focus:outline-none",
+                        pref.state ? "bg-violet-600 shadow-lg shadow-violet-500/25" : "bg-white/[0.1]",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg",
+                          "transition-transform duration-200 ease-in-out",
+                          pref.state ? "translate-x-5" : "translate-x-0",
+                        )}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          </div>
+
+          <div className="space-y-5">
+            <SectionCard title="Social Links" action={
+              !editingSocials ? (
+                <button onClick={() => setEditingSocials(true)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">
+                  <Edit2 size={12} /> Edit
+                </button>
+              ) : null
+            }>
+              {editingSocials ? (
+                <div className="space-y-3">
+                  {SOCIAL_DEFS.map(s => (
+                    <div key={s.key} className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-foreground/35 flex items-center gap-1.5">
+                        {s.icon} {s.label}
+                      </label>
+                      <input type={s.key === "gmail" ? "email" : "url"}
+                        value={socials[s.key]} onChange={e => setSocials(p => ({ ...p, [s.key]: e.target.value }))}
+                        placeholder={s.placeholder}
+                        className={inputCls()} />
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-2">
+                    <Button size="sm" className="flex-1 h-9 text-xs" onClick={() => patch({ socials }).then(() => setEditingSocials(false))}>
+                      <Check size={12} /> Save
+                    </Button>
+                    <Button size="sm" variant="glass" className="flex-1 h-9 text-xs" onClick={() => setEditingSocials(false)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {SOCIAL_DEFS.map(s => {
+                    const val = socials[s.key];
+                    const href = getSocialHref(s.key, val);
+                    if (!href) return null;
+                    return (
+                      <a key={s.key} href={href} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:border-violet-500/25 hover:bg-white/[0.05] transition-all group">
+                        <span className="text-foreground/50 group-hover:text-violet-400 transition-colors">{s.icon}</span>
+                        <span className="text-sm font-semibold text-foreground/70 group-hover:text-foreground transition-colors">{s.label}</span>
+                      </a>
+                    );
+                  })}
+                  {!socials.github && !socials.linkedin && !socials.twitter && !socials.gmail && (
+                    <div className="flex flex-col items-center gap-2 py-8 text-foreground/20">
+                      <p className="text-sm font-semibold">No social links added</p>
+                      <button onClick={() => setEditingSocials(true)}
+                        className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">
+                        + Add social links
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </SectionCard>
+
+            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-violet-500/6 to-rose-500/4 border border-violet-500/12 p-5">
+              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/35 mb-4">Profile Summary</p>
+              <div className="space-y-3">
+                {[
+                  { label: "Skills listed", value: offers.length, color: "text-violet-400" },
+                  { label: "Interests", value: interests.length, color: "text-rose-400" },
+                  { label: "Social links", value: [socials.github, socials.linkedin, socials.twitter, socials.gmail].filter(Boolean).length, color: "text-cyan-400" },
+                ].map(stat => (
+                  <div key={stat.label} className="flex items-center justify-between">
+                    <p className="text-xs text-foreground/45">{stat.label}</p>
+                    <p className={cn("text-sm font-black", stat.color)}>{stat.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
