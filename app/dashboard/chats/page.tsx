@@ -4,479 +4,359 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import fetcher from "@/lib/fetcher";
-import {
-  useWebSocket,
-  ChatMessageData,
-} from "@/hooks/useWebSocket";
-import { Send, ArrowLeftRight, Loader2, MessageSquare, Wifi, WifiOff } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { useWebSocket, ChatMessageData } from "@/hooks/useWebSocket";
+import { Send, ArrowLeftRight, Loader2, MessageSquare, Wifi, WifiOff, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-interface Skill {
-  id: string;
-  name: string;
-  category: string;
-}
-
+interface Skill { id: string; name: string; category: string; }
 interface ExchangeMatch {
-  id: string; // exchangeRequest id
-  senderId: string;
-  receiverId: string;
-  senderSkill: Skill;
-  receiverSkill: Skill;
-  createdAt: string;
-  sender?: {
-    id: string;
-    name: string | null;
-    email: string;
-    image: string | null;
-  };
-  receiver?: {
-    id: string;
-    name: string | null;
-    email: string;
-    image: string | null;
-  };
+  id: string; senderId: string; receiverId: string;
+  senderSkill: Skill; receiverSkill: Skill; createdAt: string;
+  sender?: { id: string; name: string | null; email: string; image: string | null };
+  receiver?: { id: string; name: string | null; email: string; image: string | null };
 }
-
 interface ChatSession {
-  id: string;
-  exchangeRequestId: string;
-  participant1Id: string;
-  participant2Id: string;
+  id: string; exchangeRequestId: string;
+  participant1Id: string; participant2Id: string;
   participant1: { id: string; name: string | null; email: string; image: string | null };
   participant2: { id: string; name: string | null; email: string; image: string | null };
-  exchangeRequest: {
-    id: string;
-    senderId: string;
-    receiverId: string;
-    senderSkill: Skill;
-    receiverSkill: Skill;
-  };
+  exchangeRequest: { id: string; senderId: string; receiverId: string; senderSkill: Skill; receiverSkill: Skill };
   messages: { id: string; content: string; createdAt: string; sender: { id: string; name: string | null } }[];
   updatedAt: string;
 }
 
-// ─── Typing Indicator ────────────────────────────────────────────────────────
+function sessionToMatch(s: ChatSession): ExchangeMatch {
+  return {
+    id: s.exchangeRequest.id,
+    senderId: s.exchangeRequest.senderId,
+    receiverId: s.exchangeRequest.receiverId,
+    senderSkill: s.exchangeRequest.senderSkill,
+    receiverSkill: s.exchangeRequest.receiverSkill,
+    createdAt: s.updatedAt,
+    sender: s.participant1,
+    receiver: s.participant2,
+  };
+}
 
-function TypingIndicator() {
+function TypingDots() {
   return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5">
-      <div className="flex gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:0ms]" />
-        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:150ms]" />
-        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:300ms]" />
-      </div>
-      <span className="text-xs text-muted-foreground">typing…</span>
+    <div className="flex items-center gap-1.5 px-4 py-2">
+      {[0, 1, 2].map(i => (
+        <span key={i} className="w-1.5 h-1.5 rounded-full bg-violet-400/40 animate-bounce"
+          style={{ animationDelay: `${i * 130}ms` }} />
+      ))}
     </div>
   );
 }
 
-// ─── Message Bubble ───────────────────────────────────────────────────────────
-
-function MessageBubble({
-  message,
-  isOwn,
-}: {
-  message: ChatMessageData;
-  isOwn: boolean;
+function Bubble({ message, isOwn, showAvatar, avatar }: {
+  message: ChatMessageData; isOwn: boolean; showAvatar?: boolean; avatar?: string | null;
 }) {
-  const time = new Date(message.createdAt).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
+  const time = new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return (
-    <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-2`}>
-      <div
-        className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-          isOwn
-            ? "bg-primary text-primary-foreground rounded-br-md"
-            : "bg-muted text-foreground rounded-bl-md"
-        }`}
-      >
-        <p className="text-sm whitespace-pre-wrap wrap-break-word">{message.content}</p>
-        <p
-          className={`text-[10px] mt-1 ${
-            isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
-          }`}
-        >
-          {time}
-        </p>
+    <div className={cn("flex items-end gap-2 mb-1", isOwn ? "justify-end" : "justify-start")}>
+      {!isOwn && (
+        <div className="w-6 h-6 shrink-0 mb-0.5">
+          {showAvatar && (
+            <img src={avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=user`}
+              alt="avatar" className="w-6 h-6 rounded-full object-cover" />
+          )}
+        </div>
+      )}
+      <div className={cn(
+        "max-w-[68%] px-4 py-2.5 rounded-2xl relative group",
+        isOwn
+          ? "bg-gradient-to-br from-violet-600 to-violet-700 text-white rounded-br-md shadow-lg shadow-violet-700/20"
+          : "bg-white/[0.06] text-foreground border border-white/[0.07] rounded-bl-md",
+      )}>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        <p className={cn(
+          "text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity",
+          isOwn ? "text-white/50" : "text-foreground/30",
+        )}>{time}</p>
       </div>
     </div>
   );
 }
 
-// ─── Chat Panel ───────────────────────────────────────────────────────────────
-
-function ChatPanel({
-  match,
-  userId,
-  ws,
-}: {
-  match: ExchangeMatch;
-  userId: string;
-  ws: ReturnType<typeof useWebSocket>;
+function ChatPanel({ match, userId, ws }: {
+  match: ExchangeMatch; userId: string; ws: ReturnType<typeof useWebSocket>;
 }) {
-  const isUserSender = match.senderId === userId;
-  const otherPerson = isUserSender ? match.receiver : match.sender;
-  const mySkill = isUserSender ? match.senderSkill : match.receiverSkill;
-  const theirSkill = isUserSender ? match.receiverSkill : match.senderSkill;
+  const isSender = match.senderId === userId;
+  const other = isSender ? match.receiver : match.sender;
+  const mySkill = isSender ? match.senderSkill : match.receiverSkill;
+  const theirSkill = isSender ? match.receiverSkill : match.senderSkill;
 
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
-  const [inputValue, setInputValue] = useState("");
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
   const [peerOnline, setPeerOnline] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const isTypingRef = useRef(false);
-  const messageIdsRef = useRef<Set<string>>(new Set());
-  const currentSessionIdRef = useRef<string | null>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const isTyping = useRef(false);
+  const msgIds = useRef<Set<string>>(new Set());
+  const curSessionId = useRef<string | null>(null);
 
-  const scrollToBottom = useCallback(() => {
+  const scrollBottom = useCallback(() => {
     requestAnimationFrame(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      }
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     });
   }, []);
 
-  // Init / re-init when match changes
   useEffect(() => {
     let cancelled = false;
-
-    // Leave previous session
-    if (currentSessionIdRef.current) {
-      ws.leaveSession(currentSessionIdRef.current);
-      currentSessionIdRef.current = null;
-    }
-
-    setMessages([]);
-    setChatSessionId(null);
-    setPeerTyping(false);
-    setPeerOnline(false);
-    messageIdsRef.current.clear();
+    if (curSessionId.current) { ws.leaveSession(curSessionId.current); curSessionId.current = null; }
+    setMessages([]); setChatSessionId(null); setPeerTyping(false); setPeerOnline(false); msgIds.current.clear();
 
     async function init() {
       setLoading(true);
       try {
-        const sessionRes = await fetch("/api/chat/sessions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ exchangeRequestId: match.id }),
-        });
-        if (!sessionRes.ok) throw new Error("Failed to create chat session");
-        const sessionData = await sessionRes.json();
-        const sid = sessionData.session.id;
-
+        const sr = await fetch("/api/chat/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ exchangeRequestId: match.id }) });
+        if (!sr.ok) throw new Error();
+        const sd = await sr.json();
+        const sid = sd.session.id;
         if (cancelled) return;
-        setChatSessionId(sid);
-        currentSessionIdRef.current = sid;
-
-        const messagesRes = await fetch(`/api/chat/${sid}/messages`);
-        if (messagesRes.ok) {
-          const msgData = await messagesRes.json();
+        setChatSessionId(sid); curSessionId.current = sid;
+        const mr = await fetch(`/api/chat/${sid}/messages`);
+        if (mr.ok) {
+          const md = await mr.json();
           if (!cancelled) {
-            const msgs = msgData.messages as ChatMessageData[];
-            setMessages(msgs);
-            messageIdsRef.current = new Set(msgs.map((m) => m.id));
+            const msgs = md.messages as ChatMessageData[];
+            setMessages(msgs); msgIds.current = new Set(msgs.map(m => m.id));
           }
         }
-
         ws.joinSession(sid);
-      } catch (err) {
-        console.error("Failed to init chat:", err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      } catch { /* noop */ }
+      finally { if (!cancelled) setLoading(false); }
     }
-
     init();
-
-    return () => {
-      cancelled = true;
-      if (currentSessionIdRef.current) {
-        ws.leaveSession(currentSessionIdRef.current);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { cancelled = true; if (curSessionId.current) ws.leaveSession(curSessionId.current); };
   }, [match.id]);
 
-  // Register ws handlers
   useEffect(() => {
-    ws.onMessage((msg) => {
-      if (messageIdsRef.current.has(msg.id)) return;
-      messageIdsRef.current.add(msg.id);
-      setMessages((prev) => [...prev, msg]);
-      scrollToBottom();
+    ws.onMessage(msg => {
+      if (msgIds.current.has(msg.id)) return;
+      msgIds.current.add(msg.id);
+      setMessages(prev => [...prev, msg]);
+      scrollBottom();
     });
+    ws.onTypingStart((_, uid) => { if (uid !== userId) setPeerTyping(true); });
+    ws.onTypingStop((_, uid) => { if (uid !== userId) setPeerTyping(false); });
+    ws.onUserOnline((_, uid) => { if (uid !== userId) setPeerOnline(true); });
+    ws.onUserOffline((_, uid) => { if (uid !== userId) setPeerOnline(false); });
+  }, [ws, userId, scrollBottom]);
 
-    ws.onTypingStart((_sid, uid) => {
-      if (uid !== userId) setPeerTyping(true);
-    });
+  useEffect(() => { if (!loading && messages.length > 0) scrollBottom(); }, [loading, messages.length, scrollBottom]);
 
-    ws.onTypingStop((_sid, uid) => {
-      if (uid !== userId) setPeerTyping(false);
-    });
-
-    ws.onUserOnline((_sid, uid) => {
-      if (uid !== userId) setPeerOnline(true);
-    });
-
-    ws.onUserOffline((_sid, uid) => {
-      if (uid !== userId) setPeerOnline(false);
-    });
-  }, [ws, userId, scrollToBottom]);
-
-  useEffect(() => {
-    if (!loading && messages.length > 0) scrollToBottom();
-  }, [loading, messages.length, scrollToBottom]);
-
-  const handleSend = useCallback(() => {
-    const text = inputValue.trim();
+  const send = useCallback(() => {
+    const text = input.trim();
     if (!text || !chatSessionId) return;
     ws.sendMessage(chatSessionId, text);
-    setInputValue("");
-    if (isTypingRef.current) {
-      ws.stopTyping(chatSessionId);
-      isTypingRef.current = false;
-      clearTimeout(typingTimerRef.current);
-    }
-  }, [inputValue, chatSessionId, ws]);
+    setInput("");
+    if (isTyping.current) { ws.stopTyping(chatSessionId); isTyping.current = false; clearTimeout(typingTimer.current); }
+  }, [input, chatSessionId, ws]);
 
-  const handleInputChange = useCallback(
-    (value: string) => {
-      setInputValue(value);
-      if (!chatSessionId) return;
-      if (!isTypingRef.current && value.length > 0) {
-        isTypingRef.current = true;
-        ws.startTyping(chatSessionId);
-      }
-      clearTimeout(typingTimerRef.current);
-      typingTimerRef.current = setTimeout(() => {
-        if (isTypingRef.current) {
-          isTypingRef.current = false;
-          ws.stopTyping(chatSessionId);
-        }
-      }, 2000);
-    },
-    [chatSessionId, ws]
-  );
+  const onInput = useCallback((val: string) => {
+    setInput(val);
+    if (!chatSessionId) return;
+    if (!isTyping.current && val.length > 0) { isTyping.current = true; ws.startTyping(chatSessionId); }
+    clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => {
+      if (isTyping.current) { isTyping.current = false; ws.stopTyping(chatSessionId); }
+    }, 2000);
+  }, [chatSessionId, ws]);
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0 bg-background">
+      <div className="px-5 py-3.5 border-b border-white/[0.05] flex items-center justify-between shrink-0 bg-[#080612]/60 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <img
-              src={
-                otherPerson?.image ||
-                `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherPerson?.name}`
-              }
-              alt={otherPerson?.name || "User"}
-              className="w-10 h-10 rounded-full object-cover"
-            />
-            {peerOnline && (
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-background" />
-            )}
+            <img src={other?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${other?.name}`}
+              alt={other?.name || "User"} className="w-10 h-10 rounded-xl object-cover ring-2 ring-white/[0.06]" />
+            {peerOnline && <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#080612]" />}
           </div>
           <div>
-            <p className="font-semibold text-sm text-foreground">
-              {otherPerson?.name || "Unknown"}
-            </p>
-            <p className={`text-xs ${peerOnline ? "text-green-500" : "text-muted-foreground"}`}>
+            <p className="text-sm font-bold">{other?.name || "Unknown"}</p>
+            <p className={cn("text-xs font-medium", peerOnline ? "text-emerald-400" : "text-foreground/30")}>
               {peerOnline ? "Online" : "Offline"}
             </p>
           </div>
         </div>
-
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ArrowLeftRight className="w-3 h-3" />
-            <span>
-              Teaching <strong className="text-green-500">{mySkill.name}</strong>
-              {" · "}
-              Learning <strong className="text-blue-500">{theirSkill.name}</strong>
-            </span>
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs">
+            <ArrowLeftRight size={11} className="text-foreground/30" />
+            <span className="text-emerald-400 font-semibold">{mySkill.name}</span>
+            <span className="text-foreground/20">·</span>
+            <span className="text-violet-400 font-semibold">{theirSkill.name}</span>
           </div>
-          <span
-            className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border ${
-              peerOnline
-                ? "bg-green-500/10 text-green-500 border-green-500/20"
-                : "bg-red-500/10 text-red-500 border-red-500/20"
-            }`}
-          >
-            {peerOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+          <span className={cn(
+            "flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border",
+            peerOnline
+              ? "bg-emerald-500/8 text-emerald-400 border-emerald-500/18"
+              : "bg-rose-500/8 text-rose-400 border-rose-500/18",
+          )}>
+            {peerOnline ? <Wifi size={11} /> : <WifiOff size={11} />}
             {peerOnline ? "Online" : "Offline"}
           </span>
         </div>
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-1">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-0.5">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <div className="w-6 h-6 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <MessageSquare className="w-10 h-10 mb-3 opacity-30" />
-            <p className="text-sm font-medium">No messages yet</p>
-            <p className="text-xs">Say hello to start your skill exchange!</p>
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-foreground/20">
+            <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+              <MessageSquare size={24} />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-bold">No messages yet</p>
+              <p className="text-xs mt-1">Say hello to start your skill exchange!</p>
+            </div>
           </div>
         ) : (
-          messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} isOwn={msg.senderId === userId} />
-          ))
+          <>
+            {messages.map((msg, i) => {
+              const isOwn = msg.senderId === userId;
+              const prev = messages[i - 1];
+              const showAvatar = !isOwn && (!prev || prev.senderId !== msg.senderId);
+              return (
+                <Bubble key={msg.id} message={msg} isOwn={isOwn}
+                  showAvatar={showAvatar}
+                  avatar={!isOwn ? (other?.image || null) : null}
+                />
+              );
+            })}
+          </>
         )}
-        {peerTyping && <TypingIndicator />}
+        {peerTyping && <TypingDots />}
       </div>
 
-      {/* Input */}
-      <div className="px-5 py-3 border-t border-border shrink-0">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSend();
-          }}
-          className="flex gap-2"
-        >
-          <Input
-            value={inputValue}
-            onChange={(e) => handleInputChange(e.target.value)}
+      <div className="px-4 py-3 border-t border-white/[0.05] shrink-0 bg-[#080612]/40 backdrop-blur-sm">
+        <form onSubmit={e => { e.preventDefault(); send(); }} className="flex gap-2.5 items-center">
+          <input
+            value={input}
+            onChange={e => onInput(e.target.value)}
             placeholder="Type a message…"
-            className="flex-1"
             disabled={ws.status !== "connected" || !chatSessionId}
             autoFocus
+            className="flex-1 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/15 transition-all disabled:opacity-40"
           />
-          <Button
+          <button
             type="submit"
-            size="icon"
-            disabled={!inputValue.trim() || ws.status !== "connected" || !chatSessionId}
+            disabled={!input.trim() || ws.status !== "connected" || !chatSessionId}
+            className="w-10 h-10 rounded-xl bg-violet-600 hover:bg-violet-500 text-white flex items-center justify-center transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-violet-600/25 hover:-translate-y-0.5 active:translate-y-0"
           >
-            <Send className="w-4 h-4" />
-          </Button>
+            <Send size={16} />
+          </button>
         </form>
       </div>
     </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
-// Convert a ChatSession into the ExchangeMatch shape that ChatPanel expects
-function sessionToMatch(session: ChatSession): ExchangeMatch {
-  return {
-    id: session.exchangeRequest.id,
-    senderId: session.exchangeRequest.senderId,
-    receiverId: session.exchangeRequest.receiverId,
-    senderSkill: session.exchangeRequest.senderSkill,
-    receiverSkill: session.exchangeRequest.receiverSkill,
-    createdAt: session.updatedAt,
-    sender: session.participant1,
-    receiver: session.participant2,
-  };
-}
-
 export default function ChatsPage() {
   const { data: authSession } = useSession();
   const userId = authSession?.user?.id;
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-
-  const { data: sessionsData, isLoading: loading } = useSWR("/api/chat/sessions", fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 60000,
+  const { data: sessionsData, isLoading } = useSWR("/api/chat/sessions", fetcher, {
+    revalidateOnFocus: false, dedupingInterval: 60000,
   });
   const sessions: ChatSession[] = sessionsData?.sessions ?? [];
 
   useEffect(() => {
-    if (sessions.length > 0 && !selectedSessionId) {
-      setSelectedSessionId(sessions[0].id);
-    }
-  }, [sessions, selectedSessionId]);
+    if (sessions.length > 0 && !selectedId) setSelectedId(sessions[0].id);
+  }, [sessions, selectedId]);
 
   const ws = useWebSocket();
+  const selected = sessions.find(s => s.id === selectedId) ?? null;
+  const selectedMatch = selected ? sessionToMatch(selected) : null;
 
-  const selectedSession = sessions.find((s) => s.id === selectedSessionId) ?? null;
-  const selectedMatch = selectedSession ? sessionToMatch(selectedSession) : null;
-
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const filteredSessions = sessions.filter(s => {
+    const match = sessionToMatch(s);
+    const isSender = match.senderId === userId;
+    const other = isSender ? match.receiver : match.sender;
+    return !searchQuery || other?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* ── Left panel: conversation list ── */}
-      <div className="w-80 shrink-0 border-r border-border flex flex-col bg-background">
-        <div className="px-4 py-5 border-b border-border">
-          <h1 className="text-lg font-semibold text-foreground">Chats</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {sessions.length} conversation{sessions.length !== 1 ? "s" : ""}
-          </p>
+      <div className="w-72 shrink-0 border-r border-white/[0.05] flex flex-col" style={{ background: "rgba(8,6,18,0.85)" }}>
+        <div className="px-4 py-4 border-b border-white/[0.05]">
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-base font-bold">Chats</h1>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20">
+              {sessions.length}
+            </span>
+          </div>
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/30" />
+            <input
+              value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search conversations…"
+              className="w-full pl-8 pr-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.07] text-xs text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-violet-500/40 transition-all"
+            />
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {sessions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-4 text-center">
-              <MessageSquare className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm font-medium">No chats yet</p>
-              <p className="text-xs mt-1">
-                Start a conversation from the Marketplace Matches tab.
-              </p>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-5 h-5 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin" />
+            </div>
+          ) : filteredSessions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2 text-foreground/20 px-4 text-center">
+              <MessageSquare size={24} className="opacity-30" />
+              <p className="text-xs font-semibold">No chats yet</p>
+              <p className="text-[10px] leading-relaxed">Accept exchanges in the Marketplace to start chatting</p>
             </div>
           ) : (
-            sessions.map((session) => {
+            filteredSessions.map(session => {
               const match = sessionToMatch(session);
-              const isUserSender = match.senderId === userId;
-              const otherPerson = isUserSender ? match.receiver : match.sender;
-              const mySkill = isUserSender ? match.senderSkill : match.receiverSkill;
-              const theirSkill = isUserSender ? match.receiverSkill : match.senderSkill;
+              const isSender = match.senderId === userId;
+              const other = isSender ? match.receiver : match.sender;
+              const mySkill = isSender ? match.senderSkill : match.receiverSkill;
+              const theirSkill = isSender ? match.receiverSkill : match.senderSkill;
               const lastMsg = session.messages[0];
-              const isSelected = selectedSessionId === session.id;
+              const isActive = selectedId === session.id;
 
               return (
-                <button
-                  key={session.id}
-                  onClick={() => setSelectedSessionId(session.id)}
-                  className={`w-full text-left px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors ${
-                    isSelected ? "bg-muted" : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={
-                        otherPerson?.image ||
-                        `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherPerson?.name}`
-                      }
-                      alt={otherPerson?.name || "User"}
-                      className="w-10 h-10 rounded-full object-cover shrink-0"
-                    />
+                <button key={session.id} onClick={() => setSelectedId(session.id)}
+                  className={cn(
+                    "w-full text-left px-4 py-3.5 border-b border-white/[0.04] transition-all duration-200 relative",
+                    isActive
+                      ? "bg-violet-500/10 border-l-2 border-l-violet-500"
+                      : "hover:bg-white/[0.03] border-l-2 border-l-transparent",
+                  )}>
+                  <div className="flex items-start gap-3">
+                    <div className="relative shrink-0">
+                      <img
+                        src={other?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${other?.name}`}
+                        alt={other?.name || "User"}
+                        className="w-10 h-10 rounded-xl object-cover"
+                      />
+                    </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {otherPerson?.name || "Unknown"}
+                      <p className={cn("text-sm font-bold truncate mb-0.5", isActive ? "text-violet-300" : "text-foreground/80")}>
+                        {other?.name || "Unknown"}
                       </p>
                       {lastMsg ? (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        <p className="text-xs text-foreground/30 truncate">
                           {lastMsg.sender.id === userId ? "You: " : ""}{lastMsg.content}
                         </p>
                       ) : (
-                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
-                          <ArrowLeftRight className="w-3 h-3 shrink-0" />
-                          <span className="text-green-500 truncate">{mySkill.name}</span>
-                          <span>·</span>
-                          <span className="text-blue-500 truncate">{theirSkill.name}</span>
+                        <p className="text-[10px] flex items-center gap-1 text-foreground/25">
+                          <span className="text-emerald-400">{mySkill.name}</span>
+                          <span>↔</span>
+                          <span className="text-violet-400">{theirSkill.name}</span>
                         </p>
                       )}
                     </div>
@@ -488,16 +368,48 @@ export default function ChatsPage() {
         </div>
       </div>
 
-      {/* ── Right panel: messages ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden bg-[#080612]">
         {selectedMatch && userId ? (
-          <ChatPanel key={selectedSessionId!} match={selectedMatch} userId={userId} ws={ws} />
+          <ChatPanel key={selectedId!} match={selectedMatch} userId={userId} ws={ws} />
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <MessageSquare className="w-12 h-12 mb-4 opacity-20" />
-            <p className="text-sm font-medium">Select a conversation</p>
-            <p className="text-xs mt-1">Choose a match from the left to start chatting</p>
+        <div className="flex flex-col items-center justify-center h-full gap-6 relative overflow-hidden">
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-violet-600/5 blur-[80px] animate-pulse" style={{ animationDuration: "3s" }} />
+          <div className="absolute bottom-1/4 right-1/4 w-48 h-48 rounded-full bg-rose-600/4 blur-[60px] animate-pulse" style={{ animationDuration: "4s", animationDelay: "1s" }} />
+
+          <div className="absolute inset-0 opacity-[0.03]" style={{
+            backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+          }} />
+
+          <div className="relative flex flex-col items-center gap-5 text-center max-w-xs">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-3xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shadow-xl">
+                <MessageSquare size={32} className="text-foreground/20" />
+              </div>
+              <div className="absolute -top-2 -right-3 w-8 h-8 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center animate-bounce" style={{ animationDuration: "2.5s" }}>
+                <span className="text-xs">💬</span>
+              </div>
+              <div className="absolute -bottom-2 -left-3 w-7 h-7 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center animate-bounce" style={{ animationDuration: "3s", animationDelay: "0.5s" }}>
+                <span className="text-xs">🤝</span>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-foreground/60 mb-1.5">No conversation selected</h3>
+              <p className="text-sm text-foreground/30 leading-relaxed">
+                Accept a skill exchange in the Marketplace to unlock chat with your match.
+              </p>
+            </div>
+
+            <a
+              href="/dashboard/marketplace?tab=matches"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-500/12 border border-violet-500/25 text-sm font-bold text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/40 transition-all duration-200 hover:-translate-y-0.5"
+            >
+              <ArrowLeftRight size={14} />
+              Go to Matches
+            </a>
           </div>
+        </div>
         )}
       </div>
     </div>
