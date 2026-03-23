@@ -1,7 +1,27 @@
-<svg width="800px" height="800px" viewBox="-2.4 -2.4 28.80 28.80" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#00FFFF" transform="matrix(1, 0, 0, 1, 0, 0)rotate(0)">
-<g id="SVGRepo_bgCarrier" stroke-width="0" transform="translate(0,0), scale(1)">
-<rect x="-2.4" y="-2.4" width="28.80" height="28.80" rx="14.4" fill="#00FFFF" strokewidth="0"/>
-</g>
-<g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.9120000000000001"/>
-<g id="SVGRepo_iconCarrier"> <path d="M6 19L3 16M3 16L6 13M3 16H11C12.6569 16 14 14.6569 14 13V12M10 12V11C10 9.34315 11.3431 8 13 8H21M21 8L18 11M21 8L18 5" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/> </g>
+<svg width="800px" height="800px" viewBox="-2.4 -2.4 28.80 28.80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="bgGradHover" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background: violet gradient replacing cyan -->
+  <rect x="-2.4" y="-2.4" width="28.80" height="28.80" rx="7.2" fill="url(#bgGrad)"/>
+
+  <!-- Subtle inner glow rim -->
+  <rect x="-2.4" y="-2.4" width="28.80" height="28.80" rx="7.2" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="0.6"/>
+
+  <!-- Exchange arrow icon — white, clean -->
+  <path
+    d="M6 19L3 16M3 16L6 13M3 16H11C12.6569 16 14 14.6569 14 13V12M10 12V11C10 9.34315 11.3431 8 13 8H21M21 8L18 11M21 8L18 5"
+    stroke="#ffffff"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
 </svg>
