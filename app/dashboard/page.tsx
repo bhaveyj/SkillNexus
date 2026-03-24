@@ -51,14 +51,14 @@ function StatCard({ label, value, icon, accent, loading, trend }: {
   return (
     <div className={cn(
       "group relative rounded-2xl p-5 overflow-hidden cursor-default",
-      "bg-white/[0.03] backdrop-blur-xl border border-white/[0.07]",
+      "bg-white/3 backdrop-blur-xl border border-white/[0.07]",
       "transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl",
       a.border, a.glow,
     )}>
-      <div className={cn("absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r opacity-60", a.bar)} />
+      <div className={cn("absolute top-0 left-0 right-0 h-[1.5px] bg-linear-to-r opacity-60", a.bar)} />
 
       <div className={cn(
-        "absolute bottom-0 left-0 h-[2px] w-0 group-hover:w-full transition-all duration-500 ease-out rounded-b-2xl",
+        "absolute bottom-0 left-0 h-0.5 w-0 group-hover:w-full transition-all duration-500 ease-out rounded-b-2xl",
         a.track, "opacity-30",
       )} />
 
@@ -95,12 +95,12 @@ function RecCard({ onClick, children }: { onClick?: () => void; children: React.
       onClick={onClick}
       className={cn(
         "group relative rounded-xl p-4 overflow-hidden cursor-pointer",
-        "bg-white/[0.02] border border-white/[0.06]",
-        "hover:bg-white/[0.04] hover:border-violet-500/20",
+        "bg-white/2 border border-white/6",
+        "hover:bg-white/4 hover:border-violet-500/20",
         "transition-all duration-200 hover:-translate-y-0.5",
       )}
     >
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-violet-500/3 to-transparent" />
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-linear-to-br from-violet-500/3 to-transparent" />
       <div className="relative">{children}</div>
     </div>
   );
@@ -187,7 +187,7 @@ export default function DashboardPage() {
   return (
     <div className="flex-1 overflow-auto">
 
-      <div className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#080612]/80 backdrop-blur-xl">
+      <div className="sticky top-0 z-10 border-b border-white/5 bg-[#080612]/80 backdrop-blur-xl">
         <div className="px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-lg lg:text-xl font-bold leading-tight">
@@ -199,7 +199,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => router.push("/dashboard/marketplace?tab=requests")}
-              className="relative w-9 h-9 rounded-xl flex items-center justify-center bg-white/[0.04] border border-white/[0.07] text-foreground/50 hover:text-foreground hover:bg-white/[0.07] transition-all"
+              className="relative w-9 h-9 rounded-xl flex items-center justify-center bg-white/4 border border-white/[0.07] text-foreground/50 hover:text-foreground hover:bg-white/[0.07] transition-all"
             >
               <Bell size={16} />
               {pendingCount > 0 && (
@@ -223,10 +223,10 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           <div className="lg:col-span-2">
-            <div className="relative rounded-2xl overflow-hidden bg-white/[0.03] backdrop-blur-xl border border-white/[0.07]">
-              <div className="px-6 py-4 border-b border-white/[0.05] flex items-center justify-between">
+            <div className="relative rounded-2xl overflow-hidden bg-white/3 backdrop-blur-xl border border-white/[0.07]">
+              <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center shadow-lg shadow-violet-500/30">
+                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-violet-500 to-purple-700 flex items-center justify-center shadow-lg shadow-violet-500/30">
                     <Sparkles size={18} className="text-white" />
                   </div>
                   <div>
@@ -248,7 +248,7 @@ export default function DashboardPage() {
                 )}
                 {!recs && !loadingRecs && !recsError && (
                   <div className="flex flex-col items-center gap-3 py-10 text-foreground/25">
-                    <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-2xl bg-white/3 border border-white/6 flex items-center justify-center">
                       <Sparkles size={22} />
                     </div>
                     <div className="text-center">
@@ -329,14 +329,14 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-col gap-4">
-            <div className="rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.07] overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/[0.05]">
+            <div className="rounded-2xl bg-white/3 backdrop-blur-xl border border-white/[0.07] overflow-hidden">
+              <div className="px-5 py-4 border-b border-white/5">
                 <h2 className="text-sm font-bold">Quick Access</h2>
               </div>
               <div className="p-3 space-y-1">
                 {QUICK.map(q => (
                   <Link key={q.href} href={q.href}>
-                    <div className="group flex items-center justify-between p-3 rounded-xl hover:bg-white/[0.04] border border-transparent hover:border-white/[0.07] transition-all duration-200 cursor-pointer">
+                    <div className="group flex items-center justify-between p-3 rounded-xl hover:bg-white/4 border border-transparent hover:border-white/[0.07] transition-all duration-200 cursor-pointer">
                       <div className="flex items-center gap-3">
                         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center",
                           q.accent === "violet" ? "bg-violet-500/12 text-violet-400" :
@@ -357,7 +357,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-gradient-to-br from-violet-500/8 via-purple-500/5 to-rose-500/6 border border-violet-500/15 p-5">
+            <div className="rounded-2xl bg-linear-to-br from-violet-500/8 via-purple-500/5 to-rose-500/6 border border-violet-500/15 p-5">
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp size={14} className="text-violet-400" />
                 <p className="text-xs font-bold text-violet-300">Learning streak</p>
@@ -370,8 +370,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.07] overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/[0.05] flex items-center justify-between">
+        <div className="rounded-2xl bg-white/3 backdrop-blur-xl border border-white/[0.07] overflow-hidden">
+          <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
             <h2 className="text-sm font-bold">Upcoming Sessions</h2>
             <Link href="/dashboard/my-sessions">
               <span className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">View all →</span>
@@ -384,7 +384,7 @@ export default function DashboardPage() {
             </div>
           ) : recentSessions.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-12 text-foreground/25">
-              <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.05] flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-white/3 border border-white/5 flex items-center justify-center">
                 <GraduationCap size={18} />
               </div>
               <div className="text-center">
@@ -396,10 +396,10 @@ export default function DashboardPage() {
               </Link>
             </div>
           ) : (
-            <div className="divide-y divide-white/[0.04]">
+            <div className="divide-y divide-white/4">
               {recentSessions.map(s => (
-                <div key={s.id} className="px-6 py-4 flex items-center gap-4 hover:bg-white/[0.02] transition-colors group">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-violet-800 flex items-center justify-center text-white text-xs font-black shrink-0 shadow-lg shadow-violet-500/20">
+                <div key={s.id} className="px-6 py-4 flex items-center gap-4 hover:bg-white/2 transition-colors group">
+                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-violet-600 to-violet-800 flex items-center justify-center text-white text-xs font-black shrink-0 shadow-lg shadow-violet-500/20">
                     {initials(s.instructorName)}
                   </div>
                   <div className="flex-1 min-w-0">

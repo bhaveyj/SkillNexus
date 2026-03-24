@@ -23,7 +23,7 @@ function AuthInput({
         required={required} placeholder={placeholder}
         className={[
           "w-full px-4 py-2.5 rounded-xl text-sm text-foreground",
-          "bg-white/[0.04] border border-white/[0.08]",
+          "bg-white/4 border border-white/8",
           "placeholder:text-foreground/20",
           "focus:outline-none focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/15",
           "hover:border-white/[0.14] transition-all duration-200",
@@ -48,13 +48,13 @@ function OAuthButton({
       type="button" onClick={onClick} disabled={loading}
       className={[
         "group relative flex items-center justify-center gap-2.5 w-full py-2.5 px-4 rounded-xl text-sm font-medium overflow-hidden",
-        "bg-white/[0.04] border border-white/[0.08] text-foreground/60",
-        "hover:text-foreground hover:border-white/[0.18]",
+        "bg-white/4 border border-white/8 text-foreground/60",
+        "hover:text-foreground hover:border-white/18",
         "transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed",
         `hover:shadow-lg ${accentColor}`,
       ].join(" ")}
     >
-      <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-white/[0.06] to-transparent pointer-events-none" />
+      <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-linear-to-r from-transparent via-white/6 to-transparent pointer-events-none" />
       {loading ? <Spinner /> : (
         <>
           <span className="relative z-10 flex items-center justify-center">{icon}</span>
@@ -107,11 +107,11 @@ export default function SignIn() {
   return (
     <div className="relative h-screen bg-[#080612] flex flex-col overflow-hidden">
 
-      <div className="absolute top-[-15%] left-[-8%] w-[500px] h-[500px] rounded-full bg-violet-700/12 blur-[130px] pointer-events-none" />
-      <div className="absolute bottom-[-15%] right-[-8%] w-[400px] h-[400px] rounded-full bg-rose-600/8 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-15%] left-[-8%] w-125 h-125 rounded-full bg-violet-700/12 blur-[130px] pointer-events-none" />
+      <div className="absolute bottom-[-15%] right-[-8%] w-100 h-100 rounded-full bg-rose-600/8 blur-[120px] pointer-events-none" />
       <div className="absolute inset-0 dot-grid opacity-35 pointer-events-none" />
 
-      <header className="relative z-10 shrink-0 border-b border-white/[0.05] bg-[#080612]/60 backdrop-blur-xl">
+      <header className="relative z-10 shrink-0 border-b border-white/5 bg-[#080612]/60 backdrop-blur-xl">
         <div className="mx-auto max-w-6xl px-5 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="relative">
@@ -133,10 +133,10 @@ export default function SignIn() {
         <div className="w-full max-w-md animate-fade-in-up">
 
           <div className="relative rounded-2xl overflow-hidden">
-            <div className="absolute inset-0 bg-white/[0.03] backdrop-blur-2xl" />
-            <div className="absolute inset-0 bg-gradient-to-b from-violet-500/5 to-transparent" />
-            <div className="absolute inset-0 rounded-2xl border border-white/[0.08]" />
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
+            <div className="absolute inset-0 bg-white/3 backdrop-blur-2xl" />
+            <div className="absolute inset-0 bg-linear-to-b from-violet-500/5 to-transparent" />
+            <div className="absolute inset-0 rounded-2xl border border-white/8" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-violet-500/50 to-transparent" />
 
             <div className="relative px-8 py-9 space-y-5">
 

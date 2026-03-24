@@ -30,9 +30,9 @@ function SectionCard({ title, action, children, className }: {
   title: string; action?: React.ReactNode; children: React.ReactNode; className?: string;
 }) {
   return (
-    <div className={cn("relative rounded-2xl overflow-hidden bg-white/[0.03] backdrop-blur-xl border border-white/[0.07]", className)}>
-      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/20 to-transparent" />
-      <div className="px-6 py-4 border-b border-white/[0.05] flex items-center justify-between">
+    <div className={cn("relative rounded-2xl overflow-hidden bg-white/3 backdrop-blur-xl border border-white/[0.07]", className)}>
+      <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-violet-500/20 to-transparent" />
+      <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
         <h3 className="text-sm font-bold text-foreground/70 uppercase tracking-wider">{title}</h3>
         {action}
       </div>
@@ -114,22 +114,22 @@ export default function ProfilePage() {
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#080612]/80 backdrop-blur-xl">
+      <div className="sticky top-0 z-10 border-b border-white/5 bg-[#080612]/80 backdrop-blur-xl">
         <div className="px-6 lg:px-8 h-16 flex items-center">
           <h1 className="text-xl font-bold">My Profile</h1>
         </div>
       </div>
 
       <div className="p-6 lg:p-8">
-        <div className="relative rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-violet-500/8 via-purple-500/4 to-rose-500/5 border border-violet-500/15 p-6">
-          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
+        <div className="relative rounded-2xl overflow-hidden mb-6 bg-linear-to-br from-violet-500/8 via-purple-500/4 to-rose-500/5 border border-violet-500/15 p-6">
+          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-linear-to-r from-transparent via-violet-500/50 to-transparent" />
           <div className="flex items-center gap-5">
             <div className="relative shrink-0">
               {session?.user?.image ? (
                 <img src={session.user.image} alt={userName}
                   className="w-20 h-20 rounded-2xl ring-2 ring-violet-500/25 object-cover shadow-xl shadow-violet-500/10" />
               ) : (
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-600 to-violet-800 flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-violet-500/20 ring-2 ring-violet-500/25">
+                <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-violet-600 to-violet-800 flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-violet-500/20 ring-2 ring-violet-500/25">
                   {userInitial}
                 </div>
               )}
@@ -233,7 +233,7 @@ export default function ProfilePage() {
                     {dropdownOpen && skillSearch && available.length > 0 && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-                        <div className="absolute z-50 w-full mt-1.5 bg-[#0d0a1e] border border-white/[0.08] rounded-xl shadow-2xl max-h-52 overflow-auto">
+                        <div className="absolute z-50 w-full mt-1.5 bg-[#0d0a1e] border border-white/8 rounded-xl shadow-2xl max-h-52 overflow-auto">
                           {available.slice(0, 10).map(skill => (
                             <button key={skill.id} onClick={() => addSkill(skill.id)}
                               className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-violet-500/8 transition-colors group">
@@ -271,7 +271,7 @@ export default function ProfilePage() {
                           "px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200",
                           interests.includes(i)
                             ? "bg-violet-500/15 border-violet-500/30 text-violet-300"
-                            : "bg-white/[0.03] border-white/[0.07] text-foreground/45 hover:text-foreground/70",
+                            : "bg-white/3 border-white/[0.07] text-foreground/45 hover:text-foreground/70",
                         )}>
                         {fmt(i)} {interests.includes(i) && "✓"}
                       </button>
@@ -311,10 +311,10 @@ export default function ProfilePage() {
                 ].map(pref => (
                   <div
                     key={pref.key}
-                    className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.09] transition-all duration-200 group"
+                    className="flex items-center justify-between p-4 rounded-xl bg-white/2 border border-white/5 hover:border-white/9 transition-all duration-200 group"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-white/[0.04] flex items-center justify-center text-sm">
+                      <div className="w-8 h-8 rounded-lg bg-white/4 flex items-center justify-center text-sm">
                         {pref.icon}
                       </div>
                       <div>
@@ -330,7 +330,7 @@ export default function ProfilePage() {
                       className={cn(
                         "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
                         "transition-colors duration-200 ease-in-out focus:outline-none",
-                        pref.state ? "bg-violet-600 shadow-lg shadow-violet-500/25" : "bg-white/[0.1]",
+                        pref.state ? "bg-violet-600 shadow-lg shadow-violet-500/25" : "bg-white/10",
                       )}
                     >
                       <span
@@ -384,7 +384,7 @@ export default function ProfilePage() {
                     if (!href) return null;
                     return (
                       <a key={s.key} href={href} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:border-violet-500/25 hover:bg-white/[0.05] transition-all group">
+                        className="flex items-center gap-3 p-3.5 rounded-xl bg-white/3 border border-white/[0.07] hover:border-violet-500/25 hover:bg-white/5 transition-all group">
                         <span className="text-foreground/50 group-hover:text-violet-400 transition-colors">{s.icon}</span>
                         <span className="text-sm font-semibold text-foreground/70 group-hover:text-foreground transition-colors">{s.label}</span>
                       </a>
@@ -403,8 +403,8 @@ export default function ProfilePage() {
               )}
             </SectionCard>
 
-            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-violet-500/6 to-rose-500/4 border border-violet-500/12 p-5">
-              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+            <div className="relative rounded-2xl overflow-hidden bg-linear-to-br from-violet-500/6 to-rose-500/4 border border-violet-500/12 p-5">
+              <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-violet-500/30 to-transparent" />
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/35 mb-4">Profile Summary</p>
               <div className="space-y-3">
                 {[
