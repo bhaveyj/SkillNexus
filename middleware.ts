@@ -1,8 +1,11 @@
 import { withAuth } from "next-auth/middleware"
+import { NextResponse } from "next/server"
 
 export default withAuth(
-  function middleware(_req) {
-    // Add any additional middleware logic here
+  function middleware(req) {
+    if (req.nextUrl.pathname === "/" && req.nextauth?.token) {
+      return NextResponse.redirect(new URL("/dashboard", req.url))
+    }
   },
   {
     callbacks: {
@@ -21,5 +24,5 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/api/user/:path*"]
+  matcher: ["/", "/dashboard/:path*", "/admin/:path*", "/api/user/:path*"]
 }
