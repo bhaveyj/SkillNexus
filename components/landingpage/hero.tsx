@@ -143,27 +143,6 @@ export function Hero() {
                 </Link>
               </Button>
             </div>
-
-            <div className="flex flex-wrap items-center gap-4 animate-fade-in-up delay-300">
-              <div className="flex items-center gap-2.5">
-                <div className="flex -space-x-2">
-                  {[
-                    {l:"V",bg:"linear-gradient(135deg,#7c3aed,#6d28d9)"},
-                    {l:"B",bg:"linear-gradient(135deg,#8b5cf6,#7c3aed)"},
-                    {l:"A",bg:"linear-gradient(135deg,#a855f7,#8b5cf6)"},
-                    {l:"K",bg:"linear-gradient(135deg,#c026d3,#a855f7)"},
-                    {l:"R",bg:"linear-gradient(135deg,#e11d48,#be185d)"},
-                  ].map(({l,bg},i) => (
-                    <div key={i} className="w-8 h-8 rounded-full border-2 border-[#080612] flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{background:bg}}>
-                      {l}
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground/70">1,200+ members</p>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="relative animate-fade-in-up delay-150 hidden lg:block">
