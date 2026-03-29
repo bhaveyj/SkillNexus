@@ -3,6 +3,28 @@ import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+const reviewSamples = [
+  "Great session, explained concepts clearly.",
+  "Very helpful and practical guidance.",
+  "Loved the structured approach and examples.",
+  "Super collaborative and easy to learn from.",
+  "Good interaction, learned exactly what I needed.",
+  "Patient and knowledgeable, highly recommend.",
+  "Solid exchange and clear communication.",
+  "Great mentor vibe and actionable feedback.",
+]
+
+function getBiasedRating() {
+  const roll = Math.random()
+  if (roll < 0.55) return 5
+  if (roll < 0.9) return 4
+  return 3
+}
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
 async function main() {
   // Create admin user
   const adminPassword = await bcrypt.hash('admin123', 12)
@@ -55,7 +77,45 @@ async function main() {
     },
   })
 
-  console.log({ admin, instructor, user })
+  const allUsers = await prisma.user.findMany({
+    select: { id: true },
+  })
+
+  // Refresh demo ratings each seed run so the demo stays realistic and non-duplicated.
+  await prisma.rating.deleteMany({ where: { sessionId: null } })
+
+  const ratingsToCreate: {
+    reviewerId: string
+    revieweeId: string
+    sessionId: string | null
+    rating: number
+    review: string | null
+  }[] = []
+
+  for (const reviewee of allUsers) {
+    const reviewers = allUsers.filter(u => u.id !== reviewee.id)
+    const targetCount = Math.min(reviewers.length, 3 + Math.floor(Math.random() * 3))
+
+    const shuffled = [...reviewers].sort(() => Math.random() - 0.5).slice(0, targetCount)
+
+    for (const reviewer of shuffled) {
+      ratingsToCreate.push({
+        reviewerId: reviewer.id,
+        revieweeId: reviewee.id,
+        sessionId: null,
+        rating: getBiasedRating(),
+        review: Math.random() < 0.8 ? pickRandom(reviewSamples) : null,
+      })
+    }
+  }
+
+  if (ratingsToCreate.length > 0) {
+    await prisma.rating.createMany({
+      data: ratingsToCreate,
+    })
+  }
+
+  console.log({ admin, instructor, user, ratingsSeeded: ratingsToCreate.length })
 }
 
 main()
