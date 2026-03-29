@@ -64,6 +64,8 @@ model User {
   chatSessionsAsP1         ChatSession[]     @relation("ChatParticipant1")
   chatSessionsAsP2         ChatSession[]     @relation("ChatParticipant2")
   chatMessages             ChatMessage[]
+  ratingsGiven             Rating[]          @relation("Reviewer")
+  ratingsReceived          Rating[]          @relation("Reviewee")
   
   // Add your custom user fields here
   bio           String?
@@ -204,6 +206,22 @@ model ChatMessage {
   createdAt DateTime    @default(now())
 
   @@index([sessionId, createdAt])
+}
+
+model Rating {
+  id         String   @id @default(cuid())
+  reviewerId String
+  revieweeId String
+  sessionId  String?
+  rating     Int
+  review     String?
+  createdAt  DateTime @default(now())
+
+  reviewer User @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee User @relation("Reviewee", fields: [revieweeId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewerId, sessionId])
+  @@index([revieweeId])
 }
 
 // Custom enums
