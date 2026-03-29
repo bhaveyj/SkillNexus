@@ -3,11 +3,22 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { X, Search, Edit2, Check, Github, Linkedin, Twitter, Mail } from "lucide-react";
+import { X, Search, Edit2, Check, Github, Linkedin, Twitter, Mail, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Skill { id: string; name: string; category: string; }
 interface Offer { id: string; skillId: string; skill: Skill; }
+interface RatingReview {
+  id: string;
+  rating: number;
+  review: string | null;
+  createdAt: string;
+  reviewer: { id: string; name: string | null; image: string | null };
+}
+interface RatingsData {
+  summary: { averageRating: number; totalRatings: number };
+  ratings: RatingReview[];
+}
 
 const INTERESTS = ["BACKEND", "FRONTEND", "DEVOPS", "CLOUD", "DATABASE", "AI_ML", "DATA_SCIENCE", "MOBILE", "CYBERSECURITY", "BLOCKCHAIN", "GAME_DEVELOPMENT", "UI_UX", "TESTING", "WEB_DEVELOPMENT", "OTHER"] as const;
 const fmt = (s: string) => s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
@@ -63,6 +74,7 @@ export default function ProfilePage() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [emailNotif, setEmailNotif] = useState(true);
   const [publicProfile, setPublicProfile] = useState(true);
+  const [ratingsData, setRatingsData] = useState<RatingsData | null>(null);
 
   useEffect(() => {
     if (!session?.user?.email) return;
@@ -75,6 +87,13 @@ export default function ProfilePage() {
     });
     fetch("/api/offers").then(r => r.ok ? r.json() : null).then(data => { if (data?.success) setOffers(data.data); });
     fetch("/api/skills").then(r => r.ok ? r.json() : null).then(data => { if (data?.success) setAllSkills(data.data); });
+    if (session?.user?.id) {
+      fetch(`/api/users/${session.user.id}/ratings?limit=10`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data) setRatingsData(data);
+        });
+    }
   }, [session]);
 
   const patch = (body: object) =>
@@ -138,6 +157,11 @@ export default function ProfilePage() {
             <div className="flex-1 min-w-0">
               <h2 className="text-2xl font-black text-foreground tracking-tight">{userName}</h2>
               <p className="text-sm text-foreground/40 mt-0.5">{session?.user?.email}</p>
+              <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-bold">
+                <Star size={12} className="fill-amber-400 text-amber-400" />
+                {(ratingsData?.summary.averageRating ?? 0).toFixed(1)}
+                <span className="text-foreground/40">({ratingsData?.summary.totalRatings ?? 0} reviews)</span>
+              </div>
               <div className="flex flex-wrap gap-2 mt-3">
                 {offers.slice(0, 5).map(o => (
                   <span key={o.id} className={cn("px-2.5 py-1 rounded-full text-[11px] font-bold border", SKILL_CATEGORY_COLOR[o.skill.category] || SKILL_CATEGORY_COLOR.OTHER)}>
@@ -348,6 +372,39 @@ export default function ProfilePage() {
           </div>
 
           <div className="space-y-5">
+            <SectionCard title="Ratings">
+              <div className="space-y-3">
+                <div className="rounded-xl border border-white/8 bg-white/3 p-3">
+                  <p className="text-xs font-semibold text-foreground/55">Overall</p>
+                  <p className="mt-1 text-lg font-black flex items-center gap-1.5 text-amber-300">
+                    <Star size={16} className="fill-amber-400 text-amber-400" />
+                    {(ratingsData?.summary.averageRating ?? 0).toFixed(1)}
+                    <span className="text-sm text-foreground/40 font-semibold">/ 5</span>
+                  </p>
+                  <p className="text-xs text-foreground/35 mt-0.5">{ratingsData?.summary.totalRatings ?? 0} total review{(ratingsData?.summary.totalRatings ?? 0) === 1 ? "" : "s"}</p>
+                </div>
+
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {ratingsData?.ratings?.length ? (
+                    ratingsData.ratings.map((item) => (
+                      <div key={item.id} className="rounded-xl border border-white/8 bg-white/3 p-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-bold text-foreground/75">{item.reviewer.name || "Anonymous"}</p>
+                          <p className="text-xs flex items-center gap-1 text-amber-300">
+                            <Star size={11} className="fill-amber-400 text-amber-400" /> {item.rating}
+                          </p>
+                        </div>
+                        <p className="text-[11px] text-foreground/35 mt-0.5">{new Date(item.createdAt).toLocaleDateString()}</p>
+                        {item.review && <p className="text-xs text-foreground/65 mt-1.5">{item.review}</p>}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-foreground/35">No reviews yet.</p>
+                  )}
+                </div>
+              </div>
+            </SectionCard>
+
             <SectionCard title="Social Links" action={
               !editingSocials ? (
                 <button onClick={() => setEditingSocials(true)}

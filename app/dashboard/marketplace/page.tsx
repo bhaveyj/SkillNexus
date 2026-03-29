@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
@@ -8,8 +8,9 @@ import fetcher from "@/lib/fetcher";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-import { Search, Plus, X, ArrowLeftRight, Users, BookOpen, Check, User, MessageSquare, ChevronDown } from "lucide-react";
+import { Search, Plus, X, ArrowLeftRight, Users, BookOpen, Check, User, MessageSquare, Star } from "lucide-react";
 import { ChatDialog } from "@/components/chat/ChatDialog";
+import { RatingModal } from "@/components/rating/RatingModal";
 import { cn } from "@/lib/utils";
 
 interface Skill { id: string; name: string; category: string; }
@@ -29,6 +30,26 @@ interface ExchangeRequest {
   receiver?: { id: string; name: string | null; email: string; image: string | null };
   senderSkill: Skill; receiverSkill: Skill;
 }
+interface UserRatingSummary {
+  averageRating: number;
+  totalRatings: number;
+}
+interface UserRatingReview {
+  id: string;
+  rating: number;
+  review: string | null;
+  createdAt: string;
+  reviewer: { id: string; name: string | null; image: string | null };
+}
+interface UserRatingsResponse {
+  summary: UserRatingSummary;
+  ratings: UserRatingReview[];
+}
+
+const EMPTY_SKILLS: Skill[] = [];
+const EMPTY_OFFERS: Offer[] = [];
+const EMPTY_USER_OFFERS: UserOffer[] = [];
+const EMPTY_EXCHANGE_REQUESTS: ExchangeRequest[] = [];
 
 const CATS = ["ALL","DEVOPS","CLOUD","WEB_DEVELOPMENT","BACKEND","FRONTEND","MOBILE","DATABASE","DATA_SCIENCE","AI_ML","UI_UX"];
 const fmt = (s: string) => s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
@@ -93,7 +114,7 @@ function Tab({ active, onClick, icon, label, badge }: {
 }
 
 export default function MarketplacePage() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const { toast, toasts } = useToast();
   const searchParams = useSearchParams();
 
@@ -109,26 +130,139 @@ export default function MarketplacePage() {
   const [proposeTheirSkill, setProposeTheirSkill] = useState("");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [viewingProfile, setViewingProfile] = useState<{ id: string; name: string | null; email: string; image: string | null; bio: string | null; github: string | null; linkedin: string | null; twitter: string | null; gmail: string | null } | null>(null);
+  const [profileRatings, setProfileRatings] = useState<UserRatingsResponse | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [ratingMap, setRatingMap] = useState<Record<string, UserRatingSummary>>({});
+  const [ratedByMe, setRatedByMe] = useState<Record<string, boolean>>({});
+  const [ratingTarget, setRatingTarget] = useState<{ id: string; name: string | null } | null>(null);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [ratingError, setRatingError] = useState<string | null>(null);
   const [chatMatch, setChatMatch] = useState<ExchangeRequest | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const fetchedRatingIdsRef = useRef<Set<string>>(new Set());
 
   const swrOpts = { revalidateOnFocus: false, dedupingInterval: 60000 };
   const { data: skillsData, mutate: mutateSkills } = useSWR("/api/skills", fetcher, swrOpts);
   const { data: offersData, mutate: mutateOffers } = useSWR("/api/offers", fetcher, swrOpts);
   const { data: allOffersData, mutate: mutateAllOffers } = useSWR("/api/offers?all=true", fetcher, swrOpts);
   const { data: exchangeData, mutate: mutateExchanges } = useSWR("/api/exchange-requests", fetcher, swrOpts);
+  const isBrowseLoading =
+    sessionStatus === "loading" ||
+    skillsData === undefined ||
+    offersData === undefined ||
+    allOffersData === undefined ||
+    exchangeData === undefined;
 
-  const skills: Skill[] = skillsData?.data ?? [];
-  const myOffers: Offer[] = offersData?.data ?? [];
-  const allOffers: UserOffer[] = allOffersData?.data ?? [];
-  const sentRequests: ExchangeRequest[] = exchangeData?.sent ?? [];
-  const receivedRequests: ExchangeRequest[] = (exchangeData?.received ?? []).filter((r: ExchangeRequest) => r.status === "PENDING");
+  const skills: Skill[] = skillsData?.data ?? EMPTY_SKILLS;
+  const myOffers: Offer[] = offersData?.data ?? EMPTY_OFFERS;
+  const allOffers: UserOffer[] = allOffersData?.data ?? EMPTY_USER_OFFERS;
+  const sentRequests: ExchangeRequest[] = exchangeData?.sent ?? EMPTY_EXCHANGE_REQUESTS;
+  const receivedAll: ExchangeRequest[] = exchangeData?.received ?? EMPTY_EXCHANGE_REQUESTS;
+  const receivedRequests: ExchangeRequest[] = useMemo(
+    () => receivedAll.filter((r: ExchangeRequest) => r.status === "PENDING"),
+    [receivedAll]
+  );
   const requestedUsers = useMemo(() => new Set<string>(sentRequests.map(r => r.receiverId)), [sentRequests]);
   const acceptedMatches: ExchangeRequest[] = useMemo(() => [
     ...sentRequests.filter(r => r.status === "ACCEPTED"),
-    ...(exchangeData?.received ?? []).filter((r: ExchangeRequest) => r.status === "ACCEPTED"),
-  ], [sentRequests, exchangeData]);
+    ...receivedAll.filter((r: ExchangeRequest) => r.status === "ACCEPTED"),
+  ], [sentRequests, receivedAll]);
+
+  useEffect(() => {
+    const ids = new Set<string>();
+    allOffers.forEach(o => {
+      if (o.userId !== session?.user?.id) ids.add(o.userId);
+    });
+
+    acceptedMatches.forEach(match => {
+      if (match.senderId && match.senderId !== session?.user?.id) ids.add(match.senderId);
+      if (match.receiverId && match.receiverId !== session?.user?.id) ids.add(match.receiverId);
+    });
+
+    const userIds = Array.from(ids);
+    if (userIds.length === 0) {
+      fetchedRatingIdsRef.current.clear();
+      setRatingMap(prev => (Object.keys(prev).length === 0 ? prev : {}));
+      setRatedByMe(prev => (Object.keys(prev).length === 0 ? prev : {}));
+      return;
+    }
+
+    const uncachedUserIds = userIds.filter((id) => !fetchedRatingIdsRef.current.has(id));
+    if (uncachedUserIds.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadRatings() {
+      let nextMap: Record<string, UserRatingSummary> = {};
+      let nextRatedByMe: Record<string, boolean> = {};
+
+      try {
+        const params = new URLSearchParams();
+        params.set("ids", uncachedUserIds.join(","));
+
+        const res = await fetch(`/api/users/ratings?${params.toString()}`);
+        if (!res.ok) {
+          nextMap = Object.fromEntries(
+            uncachedUserIds.map((id) => [id, { averageRating: 0, totalRatings: 0 }])
+          );
+        } else {
+          const data = (await res.json()) as {
+            summaries?: Record<string, UserRatingSummary>;
+            ratedByMe?: Record<string, boolean>;
+          };
+          const summaries = data.summaries ?? {};
+          const ratedMap = data.ratedByMe ?? {};
+          nextMap = Object.fromEntries(
+            uncachedUserIds.map((id) => [
+              id,
+              summaries[id] ?? { averageRating: 0, totalRatings: 0 },
+            ])
+          );
+
+          nextRatedByMe = Object.fromEntries(
+            uncachedUserIds.map((id) => [id, Boolean(ratedMap[id])])
+          );
+        }
+      } catch {
+        nextMap = Object.fromEntries(
+          uncachedUserIds.map((id) => [id, { averageRating: 0, totalRatings: 0 }])
+        );
+      }
+
+      if (cancelled) return;
+      if (Object.keys(nextRatedByMe).length > 0) {
+        setRatedByMe(prev => ({ ...prev, ...nextRatedByMe }));
+      }
+      uncachedUserIds.forEach((id) => fetchedRatingIdsRef.current.add(id));
+      setRatingMap(prev => {
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(nextMap);
+        if (prevKeys.length !== nextKeys.length) return nextMap;
+
+        for (const key of nextKeys) {
+          const prevItem = prev[key];
+          const nextItem = nextMap[key];
+          if (
+            !prevItem ||
+            prevItem.averageRating !== nextItem.averageRating ||
+            prevItem.totalRatings !== nextItem.totalRatings
+          ) {
+            return nextMap;
+          }
+        }
+
+        return prev;
+      });
+    }
+
+    loadRatings();
+    return () => {
+      cancelled = true;
+    };
+  }, [acceptedMatches, allOffers, session?.user?.id]);
 
   useEffect(() => {
     const t = searchParams.get("tab");
@@ -151,6 +285,16 @@ export default function MarketplacePage() {
     }, {} as Record<string, UserOffer & { skills: Skill[] }>);
     return Object.values(grouped) as UserOffer[];
   }, [allOffers, browseSearch, browseCategory, session?.user?.id]);
+
+  const availableOffers = useMemo(
+    () => filteredOffers.filter((offer) => !requestedUsers.has(offer.userId)),
+    [filteredOffers, requestedUsers]
+  );
+
+  const requestedOffers = useMemo(
+    () => filteredOffers.filter((offer) => requestedUsers.has(offer.userId)),
+    [filteredOffers, requestedUsers]
+  );
 
   const filteredSkills = useMemo(() => skills.filter(s =>
     !myOffers.some(o => o.skill.id === s.id) &&
@@ -199,10 +343,85 @@ export default function MarketplacePage() {
   const fetchProfile = async (userId: string) => {
     setLoadingProfile(true);
     try {
-      const res = await fetch(`/api/user/${userId}`);
-      const data = await res.json();
-      if (res.ok) { setViewingProfile(data); setIsProfileOpen(true); }
+      const [profileRes, ratingsRes] = await Promise.all([
+        fetch(`/api/user/${userId}`),
+        fetch(`/api/users/${userId}/ratings?limit=5`),
+      ]);
+
+      const profileData = await profileRes.json();
+      const ratingsData = ratingsRes.ok
+        ? ((await ratingsRes.json()) as UserRatingsResponse)
+        : { summary: { averageRating: 0, totalRatings: 0 }, ratings: [] };
+
+      if (profileRes.ok) {
+        setViewingProfile(profileData);
+        setProfileRatings(ratingsData);
+        setIsProfileOpen(true);
+      }
     } finally { setLoadingProfile(false); }
+  };
+
+  const openRatingModal = (userId: string, name: string | null) => {
+    if (ratedByMe[userId]) return;
+    setRatingTarget({ id: userId, name });
+    setRatingError(null);
+    setIsRatingModalOpen(true);
+  };
+
+  const submitRating = async ({ rating, review }: { rating: number; review?: string }) => {
+    if (!ratingTarget) return;
+
+    setRatingSubmitting(true);
+    setRatingError(null);
+    try {
+      const res = await fetch("/api/ratings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          revieweeId: ratingTarget.id,
+          rating,
+          review,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 409 && ratingTarget?.id) {
+          setRatedByMe(prev => ({ ...prev, [ratingTarget.id]: true }));
+          setIsRatingModalOpen(false);
+          toast({ title: "Already rated", description: "You can rate this user only once." });
+          return;
+        }
+        setRatingError(data?.error || "Failed to submit rating");
+        return;
+      }
+
+      toast({ title: "Rating submitted", description: `You rated ${ratingTarget.name || "this user"}.` });
+      setRatedByMe(prev => ({ ...prev, [ratingTarget.id]: true }));
+      setIsRatingModalOpen(false);
+      setRatingTarget(null);
+
+      try {
+        const summaryRes = await fetch(`/api/users/${ratingTarget.id}/ratings?limit=5`);
+        if (summaryRes.ok) {
+          const summaryData = (await summaryRes.json()) as UserRatingsResponse;
+          setRatingMap(prev => ({
+            ...prev,
+            [ratingTarget.id]: summaryData.summary,
+          }));
+
+          if (viewingProfile?.id === ratingTarget.id) {
+            setProfileRatings(summaryData);
+          }
+        }
+      } catch {
+        // no-op refresh fallback
+      }
+    } catch {
+      setRatingError("Failed to submit rating");
+    } finally {
+      setRatingSubmitting(false);
+    }
   };
 
   const inputCls = "w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-foreground placeholder:text-foreground/25 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/15 transition-all";
@@ -249,85 +468,199 @@ export default function MarketplacePage() {
               </div>
             </div>
 
-            {filteredOffers.length === 0 ? (
+            {isBrowseLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={`marketplace-skeleton-${i}`}
+                    className="rounded-2xl p-5 bg-white/[0.02] border border-white/[0.06] animate-pulse min-h-[220px]"
+                  />
+                ))}
+              </div>
+            ) : filteredOffers.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-20 text-foreground/25">
                 <Search size={28} className="opacity-40" />
                 <p className="text-sm font-semibold">No results found</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredOffers.map((offer: UserOffer & { skills?: Skill[] }) => {
-                  const isMe = session?.user?.id === offer.userId;
-                  const hasRequested = requestedUsers.has(offer.userId);
-                  const offerSkills = (offer as UserOffer & { skills?: Skill[] }).skills || [offer.skill];
-                  return (
-                    <div key={offer.userId}
-                      className="group relative rounded-2xl p-5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.07] hover:border-white/[0.12] transition-all duration-250 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/20 flex flex-col gap-4"
-                    >
-                      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/20 to-transparent rounded-t-2xl" />
+              <div className="space-y-8">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-foreground/30 mb-3">Available Users</p>
+                  {availableOffers.length === 0 ? (
+                    <div className="rounded-2xl p-8 bg-white/[0.02] border border-white/[0.05] text-sm text-foreground/35">
+                      You have already sent requests to all visible users.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {availableOffers.map((offer: UserOffer & { skills?: Skill[] }) => {
+                        const isMe = session?.user?.id === offer.userId;
+                        const hasRequested = requestedUsers.has(offer.userId);
+                        const offerSkills = (offer as UserOffer & { skills?: Skill[] }).skills || [offer.skill];
+                        const ratingSummary = ratingMap[offer.userId] || { averageRating: 0, totalRatings: 0 };
+                        return (
+                          <div key={offer.userId}
+                            className="group relative rounded-2xl p-5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.07] hover:border-white/[0.12] transition-all duration-250 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/20 flex flex-col gap-4"
+                          >
+                            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/20 to-transparent rounded-t-2xl" />
 
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Avatar src={offer.user.image} name={offer.user.name} size={10} />
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold truncate">{isMe ? "You" : offer.user.name}</p>
-                            <p className="text-xs text-foreground/35 truncate">{offer.user.email}</p>
-                          </div>
-                        </div>
-                        {!isMe && (
-                          <span className={cn(
-                            "px-2.5 py-1 rounded-full text-[10px] font-bold border shrink-0",
-                            hasRequested
-                              ? "bg-white/5 text-foreground/40 border-white/8"
-                              : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                          )}>
-                            {hasRequested ? "Requested" : "Can Exchange"}
-                          </span>
-                        )}
-                        {isMe && <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-white/5 text-foreground/40 border-white/8">You</span>}
-                      </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <Avatar src={offer.user.image} name={offer.user.name} size={10} />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold truncate">{isMe ? "You" : offer.user.name}</p>
+                                  <p className="text-xs text-foreground/35 truncate">{offer.user.email}</p>
+                                  {!isMe && (
+                                    <p className="text-[11px] mt-0.5 flex items-center gap-1 text-amber-300/90">
+                                      <Star size={11} className="fill-amber-400 text-amber-400" />
+                                      {ratingSummary.averageRating.toFixed(1)} ({ratingSummary.totalRatings} review{ratingSummary.totalRatings === 1 ? "" : "s"})
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              {!isMe && (
+                                <span className={cn(
+                                  "px-2.5 py-1 rounded-full text-[10px] font-bold border shrink-0",
+                                  hasRequested
+                                    ? "bg-white/5 text-foreground/40 border-white/8"
+                                    : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                )}>
+                                  {hasRequested ? "Requested" : "Can Exchange"}
+                                </span>
+                              )}
+                              {isMe && <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-white/5 text-foreground/40 border-white/8">You</span>}
+                            </div>
 
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/25 mb-2">Can teach</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {offerSkills.map((s: Skill) => <SkillPill key={s.id} skill={s} />)}
-                        </div>
-                      </div>
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/25 mb-2">Can teach</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {offerSkills.map((s: Skill) => <SkillPill key={s.id} skill={s} />)}
+                              </div>
+                            </div>
 
-                      {offer.userRequests && offer.userRequests.length > 0 && (
-                        <div className="pt-3 border-t border-white/[0.05]">
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/25 mb-2">Wants to learn</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {offer.userRequests.slice(0, 4).map((req: Request) => {
-                              const iCanTeach = myOffers.some(o => o.skill.id === req.skill.id);
-                              return <SkillPill key={req.id} skill={req.skill} canTeach={iCanTeach} />;
-                            })}
-                            {offer.userRequests.length > 4 && (
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-white/5 text-foreground/35 border border-white/8">
-                                +{offer.userRequests.length - 4}
-                              </span>
+                            {offer.userRequests && offer.userRequests.length > 0 && (
+                              <div className="pt-3 border-t border-white/[0.05]">
+                                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/25 mb-2">Wants to learn</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {offer.userRequests.slice(0, 4).map((req: Request) => {
+                                    const iCanTeach = myOffers.some(o => o.skill.id === req.skill.id);
+                                    return <SkillPill key={req.id} skill={req.skill} canTeach={iCanTeach} />;
+                                  })}
+                                  {offer.userRequests.length > 4 && (
+                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-white/5 text-foreground/35 border border-white/8">
+                                      +{offer.userRequests.length - 4}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {!isMe && (
+                              <div className="mt-auto pt-1">
+                                {!hasRequested ? (
+                                  <Button size="sm" className="w-full h-9 text-xs font-bold"
+                                    onClick={e => { e.stopPropagation(); setProposeTarget({ ...offer, skills: offerSkills }); setIsProposeOpen(true); }}>
+                                    Request Exchange
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" variant="glass" className="w-full h-9 text-xs" disabled>
+                                    ✓ Request Sent
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </div>
-                        </div>
-                      )}
-
-                      {!isMe && (
-                        <div className="mt-auto pt-1">
-                          {!hasRequested ? (
-                            <Button size="sm" className="w-full h-9 text-xs font-bold"
-                              onClick={e => { e.stopPropagation(); setProposeTarget({ ...offer, skills: offerSkills }); setIsProposeOpen(true); }}>
-                              Request Exchange
-                            </Button>
-                          ) : (
-                            <Button size="sm" variant="glass" className="w-full h-9 text-xs" disabled>
-                              ✓ Request Sent
-                            </Button>
-                          )}
-                        </div>
-                      )}
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+
+                {requestedOffers.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-foreground/30 mb-3">Already Requested</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {requestedOffers.map((offer: UserOffer & { skills?: Skill[] }) => {
+                        const isMe = session?.user?.id === offer.userId;
+                        const hasRequested = requestedUsers.has(offer.userId);
+                        const offerSkills = (offer as UserOffer & { skills?: Skill[] }).skills || [offer.skill];
+                        const ratingSummary = ratingMap[offer.userId] || { averageRating: 0, totalRatings: 0 };
+                        return (
+                          <div key={offer.userId}
+                            className="group relative rounded-2xl p-5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.07] hover:border-white/[0.12] transition-all duration-250 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/20 flex flex-col gap-4"
+                          >
+                            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/20 to-transparent rounded-t-2xl" />
+
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <Avatar src={offer.user.image} name={offer.user.name} size={10} />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold truncate">{isMe ? "You" : offer.user.name}</p>
+                                  <p className="text-xs text-foreground/35 truncate">{offer.user.email}</p>
+                                  {!isMe && (
+                                    <p className="text-[11px] mt-0.5 flex items-center gap-1 text-amber-300/90">
+                                      <Star size={11} className="fill-amber-400 text-amber-400" />
+                                      {ratingSummary.averageRating.toFixed(1)} ({ratingSummary.totalRatings} review{ratingSummary.totalRatings === 1 ? "" : "s"})
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              {!isMe && (
+                                <span className={cn(
+                                  "px-2.5 py-1 rounded-full text-[10px] font-bold border shrink-0",
+                                  hasRequested
+                                    ? "bg-white/5 text-foreground/40 border-white/8"
+                                    : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                )}>
+                                  {hasRequested ? "Requested" : "Can Exchange"}
+                                </span>
+                              )}
+                              {isMe && <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-white/5 text-foreground/40 border-white/8">You</span>}
+                            </div>
+
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/25 mb-2">Can teach</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {offerSkills.map((s: Skill) => <SkillPill key={s.id} skill={s} />)}
+                              </div>
+                            </div>
+
+                            {offer.userRequests && offer.userRequests.length > 0 && (
+                              <div className="pt-3 border-t border-white/[0.05]">
+                                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/25 mb-2">Wants to learn</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {offer.userRequests.slice(0, 4).map((req: Request) => {
+                                    const iCanTeach = myOffers.some(o => o.skill.id === req.skill.id);
+                                    return <SkillPill key={req.id} skill={req.skill} canTeach={iCanTeach} />;
+                                  })}
+                                  {offer.userRequests.length > 4 && (
+                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-white/5 text-foreground/35 border border-white/8">
+                                      +{offer.userRequests.length - 4}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {!isMe && (
+                              <div className="mt-auto pt-1">
+                                {!hasRequested ? (
+                                  <Button size="sm" className="w-full h-9 text-xs font-bold"
+                                    onClick={e => { e.stopPropagation(); setProposeTarget({ ...offer, skills: offerSkills }); setIsProposeOpen(true); }}>
+                                    Request Exchange
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" variant="glass" className="w-full h-9 text-xs" disabled>
+                                    ✓ Request Sent
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -348,6 +681,9 @@ export default function MarketplacePage() {
                 const other = isSender ? match.receiver : match.sender;
                 const mySkill = isSender ? match.senderSkill : match.receiverSkill;
                 const theirSkill = isSender ? match.receiverSkill : match.senderSkill;
+                const otherId = other?.id || "";
+                const ratingSummary = ratingMap[otherId] || { averageRating: 0, totalRatings: 0 };
+                const isAlreadyRated = Boolean(otherId && ratedByMe[otherId]);
                 return (
                   <div key={match.id}
                     className="relative rounded-2xl p-5 bg-white/[0.03] backdrop-blur-xl border border-emerald-500/15 hover:border-emerald-500/25 transition-all duration-250 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/20 flex flex-col gap-4"
@@ -360,6 +696,10 @@ export default function MarketplacePage() {
                         <div className="min-w-0">
                           <p className="text-sm font-bold">{other?.name}</p>
                           <p className="text-xs text-foreground/35 truncate">{other?.email}</p>
+                          <p className="text-[11px] mt-0.5 flex items-center gap-1 text-amber-300/90">
+                            <Star size={11} className="fill-amber-400 text-amber-400" />
+                            {ratingSummary.averageRating.toFixed(1)} ({ratingSummary.totalRatings} review{ratingSummary.totalRatings === 1 ? "" : "s"})
+                          </p>
                         </div>
                       </div>
                       <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shrink-0">✓ Matched</span>
@@ -380,10 +720,19 @@ export default function MarketplacePage() {
                       Matched {new Date(match.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                     </p>
 
-                    <div className="grid grid-cols-2 gap-2 mt-auto">
+                    <div className="grid grid-cols-3 gap-2 mt-auto">
                       <Button size="sm" variant="glass" className="h-9 text-xs"
                         onClick={() => other && fetchProfile(other.id)} disabled={loadingProfile}>
                         <User size={12} /> Profile
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="glass"
+                        className="h-9 text-xs"
+                        disabled={isAlreadyRated}
+                        onClick={() => other && openRatingModal(other.id, other.name || null)}
+                      >
+                        <Star size={12} /> {isAlreadyRated ? "Rated" : "Rate"}
                       </Button>
                       <Button size="sm" className="h-9 text-xs"
                         onClick={() => { setChatMatch(match); setIsChatOpen(true); }}>
@@ -871,7 +1220,33 @@ export default function MarketplacePage() {
                   {viewingProfile.bio && (
                     <p className="text-sm text-foreground/60 mt-1">{viewingProfile.bio}</p>
                   )}
+                  <p className="text-xs mt-2 flex items-center gap-1 text-amber-300">
+                    <Star size={12} className="fill-amber-400 text-amber-400" />
+                    {(profileRatings?.summary.averageRating ?? 0).toFixed(1)} ({profileRatings?.summary.totalRatings ?? 0} review{(profileRatings?.summary.totalRatings ?? 0) === 1 ? "" : "s"})
+                  </p>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-foreground/60">Recent Reviews</h4>
+                {profileRatings?.ratings?.length ? (
+                  <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                    {profileRatings.ratings.map((item) => (
+                      <div key={item.id} className="rounded-lg border border-white/8 bg-white/4 p-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-foreground/75">{item.reviewer.name || "Anonymous"}</p>
+                          <p className="text-[11px] flex items-center gap-1 text-amber-300">
+                            <Star size={11} className="fill-amber-400 text-amber-400" /> {item.rating}
+                          </p>
+                        </div>
+                        <p className="text-xs text-foreground/50 mt-1">{new Date(item.createdAt).toLocaleDateString()}</p>
+                        {item.review && <p className="text-xs text-foreground/70 mt-1.5">{item.review}</p>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-foreground/40">No reviews yet.</p>
+                )}
               </div>
 
               {/* Social Links */}
@@ -937,17 +1312,45 @@ export default function MarketplacePage() {
                 </div>
               </div>
 
-              <Button
-                variant="glass"
-                onClick={() => setIsProfileOpen(false)}
-                className="w-full cursor-pointer"
-              >
-                Close
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="glass"
+                  disabled={Boolean(ratedByMe[viewingProfile.id])}
+                  onClick={() => {
+                    setIsProfileOpen(false);
+                    openRatingModal(viewingProfile.id, viewingProfile.name);
+                  }}
+                  className="w-full cursor-pointer"
+                >
+                  <Star size={12} /> {ratedByMe[viewingProfile.id] ? "Rated" : "Rate User"}
+                </Button>
+                <Button
+                  variant="glass"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="w-full cursor-pointer"
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      <RatingModal
+        open={isRatingModalOpen}
+        loading={ratingSubmitting}
+        error={ratingError}
+        targetName={ratingTarget?.name}
+        onOpenChange={(open) => {
+          setIsRatingModalOpen(open);
+          if (!open) {
+            setRatingError(null);
+            setRatingTarget(null);
+          }
+        }}
+        onSubmit={submitRating}
+      />
 
       {chatMatch && (
         <ChatDialog open={isChatOpen} onOpenChange={o => { setIsChatOpen(o); if (!o) setChatMatch(null); }} match={chatMatch} />
