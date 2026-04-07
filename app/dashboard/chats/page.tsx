@@ -5,20 +5,38 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import fetcher from "@/lib/fetcher";
 import { useWebSocket, ChatMessageData } from "@/hooks/useWebSocket";
-import { Send, ArrowLeftRight, Loader2, MessageSquare, Wifi, WifiOff, Search } from "lucide-react";
+import { Send, ArrowLeftRight, MessageSquare, Wifi, WifiOff, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface Skill { id: string; name: string; category: string; }
+type SessionStatus = "pending" | "accepted" | "completed";
+type SessionType = "exchange" | "paid";
+
+interface SessionCompletionState {
+  status: SessionStatus;
+  sessionType: SessionType;
+  teacherCompleted: boolean;
+  learnerCompleted: boolean;
+}
+
 interface ExchangeMatch {
   id: string; senderId: string; receiverId: string;
   senderSkill: Skill; receiverSkill: Skill; createdAt: string;
+  sessionStatus: SessionStatus;
+  sessionType: SessionType;
+  teacherCompleted: boolean;
+  learnerCompleted: boolean;
   sender?: { id: string; name: string | null; email: string; image: string | null };
   receiver?: { id: string; name: string | null; email: string; image: string | null };
 }
 interface ChatSession {
   id: string; exchangeRequestId: string;
   participant1Id: string; participant2Id: string;
+  status: SessionStatus;
+  sessionType: SessionType;
+  teacherCompleted: boolean;
+  learnerCompleted: boolean;
   participant1: { id: string; name: string | null; email: string; image: string | null };
   participant2: { id: string; name: string | null; email: string; image: string | null };
   exchangeRequest: { id: string; senderId: string; receiverId: string; senderSkill: Skill; receiverSkill: Skill };
@@ -34,6 +52,10 @@ function sessionToMatch(s: ChatSession): ExchangeMatch {
     senderSkill: s.exchangeRequest.senderSkill,
     receiverSkill: s.exchangeRequest.receiverSkill,
     createdAt: s.updatedAt,
+    sessionStatus: s.status,
+    sessionType: s.sessionType,
+    teacherCompleted: s.teacherCompleted,
+    learnerCompleted: s.learnerCompleted,
     sender: s.participant1,
     receiver: s.participant2,
   };
@@ -94,18 +116,47 @@ function ChatPanel({ match, userId, ws }: {
   const [loading, setLoading] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
   const [peerOnline, setPeerOnline] = useState(false);
+  const [completionState, setCompletionState] = useState<SessionCompletionState>({
+    status: match.sessionStatus,
+    sessionType: match.sessionType,
+    teacherCompleted: match.teacherCompleted,
+    learnerCompleted: match.learnerCompleted,
+  });
+  const [markingComplete, setMarkingComplete] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isTyping = useRef(false);
   const msgIds = useRef<Set<string>>(new Set());
   const curSessionId = useRef<string | null>(null);
+  const hasCurrentUserMarkedComplete = isSender
+    ? completionState.teacherCompleted
+    : completionState.learnerCompleted;
+  const isSessionCompleted = completionState.status === "completed";
 
   const scrollBottom = useCallback(() => {
     requestAnimationFrame(() => {
       if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     });
   }, []);
+
+  useEffect(() => {
+    setCompletionState({
+      status: match.sessionStatus,
+      sessionType: match.sessionType,
+      teacherCompleted: match.teacherCompleted,
+      learnerCompleted: match.learnerCompleted,
+    });
+    setCompletionError(null);
+    setMarkingComplete(false);
+  }, [
+    match.id,
+    match.sessionStatus,
+    match.sessionType,
+    match.teacherCompleted,
+    match.learnerCompleted,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,6 +171,13 @@ function ChatPanel({ match, userId, ws }: {
         const sd = await sr.json();
         const sid = sd.session.id;
         if (cancelled) return;
+        setCompletionState({
+          status: sd.session.status as SessionStatus,
+          sessionType: sd.session.sessionType as SessionType,
+          teacherCompleted: Boolean(sd.session.teacherCompleted),
+          learnerCompleted: Boolean(sd.session.learnerCompleted),
+        });
+        setCompletionError(null);
         setChatSessionId(sid); curSessionId.current = sid;
         const mr = await fetch(`/api/chat/${sid}/messages`);
         if (mr.ok) {
@@ -170,6 +228,63 @@ function ChatPanel({ match, userId, ws }: {
     }, 2000);
   }, [chatSessionId, ws]);
 
+  const markComplete = useCallback(async () => {
+    if (
+      !chatSessionId ||
+      markingComplete ||
+      hasCurrentUserMarkedComplete ||
+      isSessionCompleted
+    ) {
+      return;
+    }
+
+    setMarkingComplete(true);
+    setCompletionError(null);
+
+    try {
+      const response = await fetch("/api/sessions/mark-complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: chatSessionId }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setCompletionError(
+          data && typeof data.error === "string"
+            ? data.error
+            : "Failed to mark session as completed"
+        );
+        return;
+      }
+
+      if (data?.session) {
+        setCompletionState({
+          status: data.session.status as SessionStatus,
+          sessionType: data.session.sessionType as SessionType,
+          teacherCompleted: Boolean(data.session.teacherCompleted),
+          learnerCompleted: Boolean(data.session.learnerCompleted),
+        });
+      }
+    } catch {
+      setCompletionError("Failed to mark session as completed");
+    } finally {
+      setMarkingComplete(false);
+    }
+  }, [
+    chatSessionId,
+    hasCurrentUserMarkedComplete,
+    isSessionCompleted,
+    markingComplete,
+  ]);
+
+  const completionMessage = isSessionCompleted
+    ? "Session Completed ✅"
+    : hasCurrentUserMarkedComplete
+      ? "Waiting for other user to confirm..."
+      : "Mark this session complete when your exchange ends.";
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-5 py-3.5 border-b border-white/[0.05] flex items-center justify-between shrink-0 bg-[#080612]/60 backdrop-blur-xl">
@@ -203,6 +318,46 @@ function ChatPanel({ match, userId, ws }: {
             {peerOnline ? "Online" : "Offline"}
           </span>
         </div>
+      </div>
+
+      <div className="px-5 py-2.5 border-b border-white/[0.05] bg-[#080612]/40 backdrop-blur-sm flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div>
+          <p
+            className={cn(
+              "text-xs font-semibold",
+              isSessionCompleted
+                ? "text-emerald-400"
+                : hasCurrentUserMarkedComplete
+                  ? "text-amber-300"
+                  : "text-foreground/50"
+            )}
+          >
+            {completionMessage}
+          </p>
+          {completionError && (
+            <p className="text-[11px] text-rose-400 mt-1">{completionError}</p>
+          )}
+        </div>
+
+        <Button
+          type="button"
+          onClick={markComplete}
+          disabled={
+            !chatSessionId ||
+            markingComplete ||
+            hasCurrentUserMarkedComplete ||
+            isSessionCompleted
+          }
+          className="h-8 px-3 text-xs font-semibold bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:hover:bg-violet-600"
+        >
+          {isSessionCompleted
+            ? "Session Completed"
+            : hasCurrentUserMarkedComplete
+              ? "Completion Confirmed"
+              : markingComplete
+                ? "Marking..."
+                : "Mark Session as Completed"}
+        </Button>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-0.5">
