@@ -187,6 +187,10 @@ model ChatSession {
   participant1      User     @relation("ChatParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
   participant2Id    String
   participant2      User     @relation("ChatParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  status            SessionStatus @default(accepted)
+  sessionType       SessionType   @default(exchange)
+  teacherCompleted  Boolean       @default(false)
+  learnerCompleted  Boolean       @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -260,4 +264,15 @@ enum ExchangeStatus {
   ACCEPTED
   DECLINED
   CANCELLED
+}
+
+enum SessionStatus {
+  pending
+  accepted
+  completed
+}
+
+enum SessionType {
+  exchange
+  paid
 }
