@@ -10,6 +10,7 @@ A modern skill development and learning platform built with Next.js, NextAuth.js
 - 🚀 **Deployment**: Automated CI/CD with GitHub Actions and Vercel
 - 🔒 **Security**: Protected routes with middleware
 - 📱 **Responsive**: Mobile-first design
+- 💳 **Credits Wallet**: Earn credits by teaching, spend on learning
 
 ## Tech Stack
 
@@ -84,6 +85,14 @@ After seeding the database, you can use these test accounts:
 - **Admin**: admin@skillnexus.com / admin123
 - **Instructor**: instructor@skillnexus.com / instructor123  
 - **User**: user@skillnexus.com / user123
+
+## Credits Wallet
+
+SkillNexus uses a ledger-backed credit wallet:
+
+- Earn credits by teaching in exchanges and masterclasses
+- Spend credits to learn
+- New users receive an onboarding credit bonus
 
 ## Database Commands
 

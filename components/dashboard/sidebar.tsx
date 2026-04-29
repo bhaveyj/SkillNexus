@@ -13,6 +13,8 @@ import {
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
+import useSWR from "swr";
+import fetcher from "@/lib/fetcher";
 import {
   Dialog,
   DialogContent,
@@ -59,11 +61,14 @@ const NAV_LINKS = [
 
 export function Sidebar() {
   const { data: session } = useSession();
+  const { data: profile } = useSWR(
+    session?.user?.id ? "/api/user/profile" : null,
+    fetcher
+  );
   const [open, setOpen] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
 
   const userName = session?.user?.name || "User";
-  const userInitial = userName.charAt(0).toUpperCase();
   const avatarSrc =
     session?.user?.image ||
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`;
@@ -112,6 +117,12 @@ export function Sidebar() {
               >
                 <span className="text-xs font-semibold text-foreground/80 truncate">{userName}</span>
                 <span className="text-[10px] text-foreground/35 truncate">{session?.user?.email}</span>
+                <div className="mt-1">
+                  <span className="inline-flex items-center gap-2 px-2 py-1 rounded-full text-[11px] font-bold bg-amber-500/8 border border-amber-500/18 text-amber-300">
+                    <span className="text-[10px] font-black">CR</span>
+                    {profile ? `${profile.creditBalance ?? 0} credits` : "- credits"}
+                  </span>
+                </div>
               </motion.div>
             </div>
 

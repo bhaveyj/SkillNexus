@@ -41,11 +41,17 @@ export async function GET(req: NextRequest) {
       0
     )
 
+    const me = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { creditBalance: true },
+    })
+
     return NextResponse.json({
       skillsShared,
       activeExchanges,
       masterclasses,
       learningHours,
+      creditBalance: me?.creditBalance ?? 0,
     })
   } catch (error) {
     console.error("Error fetching user stats:", error)

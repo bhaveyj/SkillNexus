@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
+const SEED_CREDITS = 50
 
 const reviewSamples = [
   "Great session, explained concepts clearly.",
@@ -80,6 +81,34 @@ async function main() {
   const allUsers = await prisma.user.findMany({
     select: { id: true },
   })
+
+  const seedUsers = [admin, instructor, user]
+  for (const u of seedUsers) {
+    const existing = await prisma.creditTransaction.findFirst({
+      where: { userId: u.id, source: "seed" },
+    })
+
+    if (!existing) {
+      const current = await prisma.user.findUnique({
+        where: { id: u.id },
+        select: { creditBalance: true },
+      })
+      const newBalance = (current?.creditBalance ?? 0) + SEED_CREDITS
+      await prisma.user.update({
+        where: { id: u.id },
+        data: { creditBalance: newBalance },
+      })
+      await prisma.creditTransaction.create({
+        data: {
+          userId: u.id,
+          amount: SEED_CREDITS,
+          type: "ONBOARDING",
+          source: "seed",
+          balanceAfter: newBalance,
+        },
+      })
+    }
+  }
 
   // Refresh demo ratings each seed run so the demo stays realistic and non-duplicated.
   await prisma.rating.deleteMany({ where: { sessionId: null } })

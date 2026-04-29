@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+import { awardOnboarding } from "@/lib/services/creditService"
 import { z } from "zod"
 import { applyRateLimit, authLimiter } from "@/middleware/rateLimiter"
 
@@ -33,13 +34,17 @@ export async function POST(req: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-      }
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+        },
+      })
+
+      await awardOnboarding(tx, created.id)
+      return created
     })
 
     // Remove password from response

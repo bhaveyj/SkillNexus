@@ -47,7 +47,7 @@ function OutcomesIcon({ color }: { color: string }) {
 const ITEMS = [
   {
     title: "1:1 Skill Exchange",
-    desc: "Swap expertise with verified peers for focused, hands-on learning sessions. You teach what you know, learn what you need — completely free.",
+    desc: "Swap expertise with verified peers for focused, hands-on learning sessions. You teach what you know, learn what you need — powered by credits.",
     badge: "Peer-to-peer",
     badgeCls: "badge-violet",
     color: "#8b5cf6",
@@ -55,7 +55,7 @@ const ITEMS = [
     cardShadow: "hover:shadow-violet-500/8",
     accentBg: "from-violet-600/12 to-purple-900/8",
     accentLine: "via-violet-500/50",
-    highlights: ["Free forever", "No middleman", "1:1 focused"],
+    highlights: ["Earn credits", "No middleman", "1:1 focused"],
     Icon: ExchangeIcon,
   },
   {

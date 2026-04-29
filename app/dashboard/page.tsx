@@ -32,6 +32,15 @@ interface Recommendations {
 interface DashboardStats {
   skillsShared: number; activeExchanges: number;
   masterclasses: number; learningHours: number;
+  creditBalance: number;
+}
+interface CreditTx {
+  id: string;
+  amount: number;
+  type: string;
+  source: string | null;
+  balanceAfter: number;
+  createdAt: string;
 }
 
 const CACHE_PREFIX = "ai_rec:";
@@ -117,6 +126,8 @@ export default function DashboardPage() {
   const [recs, setRecs] = useState<Recommendations | null>(null);
   const [loadingRecs, setLoadingRecs] = useState(true);
   const [recsError, setRecsError] = useState<string | null>(null);
+  const [creditHistory, setCreditHistory] = useState<CreditTx[]>([]);
+  const [loadingCredits, setLoadingCredits] = useState(true);
 
   const fetchRecs = async (force = false) => {
     const key = session?.user?.id ? `${CACHE_PREFIX}${session.user.id}` : null;
@@ -135,11 +146,14 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (!session) { setLoadingSessions(false); setLoadingRecs(false); return; }
+    if (!session) { setLoadingSessions(false); setLoadingRecs(false); setLoadingCredits(false); return; }
     fetch("/api/masterclass/my-sessions").then(r => r.ok ? r.json() : [])
       .then(data => setRecentSessions((Array.isArray(data) ? data : []).filter((s: RegisteredSession) => new Date(s.date) >= new Date()).slice(0, 3)))
       .finally(() => setLoadingSessions(false));
     fetch("/api/user/stats").then(r => r.ok ? r.json() : null).then(d => { if (d) setStats(d); });
+    fetch("/api/user/credits?limit=5").then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.transactions) setCreditHistory(d.transactions); })
+      .finally(() => setLoadingCredits(false));
     fetch("/api/exchange-requests?type=received").then(r => r.ok ? r.json() : { data: [] })
       .then(d => setPendingCount((Array.isArray(d?.data) ? d.data : []).filter((x: { status?: string }) => x.status === "PENDING").length));
 
@@ -163,6 +177,7 @@ export default function DashboardPage() {
   const initials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
   const STATS = [
+    { label: "Credits", value: stats?.creditBalance ?? "—", icon: <ShoppingBag size={16} />, accent: "violet" as const, trend: stats ? { label: stats.creditBalance > 0 ? "wallet funded" : "earn credits", up: stats.creditBalance > 0 } : undefined },
     { label: "Skills Shared", value: stats?.skillsShared ?? "—", icon: <Share2 size={16} />, accent: "violet" as const, trend: stats ? { label: `${stats.skillsShared > 0 ? "active" : "add skills"}`, up: stats.skillsShared > 0 } : undefined },
     { label: "Active Exchanges", value: stats?.activeExchanges ?? "—", icon: <RefreshCw size={16} />, accent: "rose" as const, trend: stats ? { label: stats.activeExchanges > 0 ? `${stats.activeExchanges} ongoing` : "browse marketplace", up: stats.activeExchanges > 0 } : undefined },
     { label: "Masterclasses", value: stats?.masterclasses ?? "—", icon: <GraduationCap size={16} />, accent: "cyan" as const, trend: stats ? { label: stats.masterclasses > 0 ? "sessions joined" : "explore sessions", up: stats.masterclasses > 0 } : undefined },
@@ -183,6 +198,14 @@ export default function DashboardPage() {
     green: "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20",
     orange: "bg-orange-500/10 text-orange-300 border border-orange-500/20",
   } as Record<string, string>)[color] || "";
+
+  const formatCreditLabel = (tx: CreditTx) => {
+    if (tx.type === "ONBOARDING") return "Onboarding bonus";
+    if (tx.type === "TEACH_REWARD") return "Teaching reward";
+    if (tx.type === "LEARN_SPEND") return "Learning spend";
+    if (tx.type === "REFUND") return "Refund";
+    return "Credit update";
+  };
 
   return (
     <div className="flex-1 overflow-auto">
@@ -214,7 +237,7 @@ export default function DashboardPage() {
 
       <div className="p-6 lg:p-8 space-y-6">
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {STATS.map((s, i) => (
             <StatCard key={i} label={s.label} value={s.value} icon={s.icon} accent={s.accent} loading={!stats} trend={s.trend} />
           ))}
@@ -329,6 +352,51 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-col gap-4">
+            <div className="rounded-2xl bg-white/3 backdrop-blur-xl border border-white/[0.07] overflow-hidden">
+              <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+                <h2 className="text-sm font-bold">Wallet</h2>
+                <span className="text-xs font-bold text-amber-300">
+                  {stats ? `${stats.creditBalance} credits` : "— credits"}
+                </span>
+              </div>
+              <div className="p-4 space-y-3">
+                {loadingCredits ? (
+                  <div className="flex items-center gap-2 text-xs text-foreground/35">
+                    <div className="w-3 h-3 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin" />
+                    Loading credit history…
+                  </div>
+                ) : creditHistory.length === 0 ? (
+                  <div className="text-xs text-foreground/35">
+                    No credit activity yet. Earn credits by teaching.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {creditHistory.map((tx) => (
+                      <div key={tx.id} className="flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-semibold text-foreground/75">
+                            {formatCreditLabel(tx)}
+                          </p>
+                          <p className="text-[10px] text-foreground/35">
+                            {new Date(tx.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </p>
+                        </div>
+                        <span className={cn(
+                          "font-bold",
+                          tx.amount >= 0 ? "text-emerald-300" : "text-rose-300"
+                        )}>
+                          {tx.amount >= 0 ? "+" : ""}{tx.amount}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="px-5 py-3 text-[10px] text-foreground/35 border-t border-white/5">
+                Earn credits by teaching. Spend them on exchanges and masterclasses.
+              </div>
+            </div>
+
             <div className="rounded-2xl bg-white/3 backdrop-blur-xl border border-white/[0.07] overflow-hidden">
               <div className="px-5 py-4 border-b border-white/5">
                 <h2 className="text-sm font-bold">Quick Access</h2>
