@@ -89,23 +89,25 @@ async function main() {
     })
 
     if (!existing) {
-      const current = await prisma.user.findUnique({
-        where: { id: u.id },
-        select: { creditBalance: true },
-      })
-      const newBalance = (current?.creditBalance ?? 0) + SEED_CREDITS
-      await prisma.user.update({
-        where: { id: u.id },
-        data: { creditBalance: newBalance },
-      })
-      await prisma.creditTransaction.create({
-        data: {
-          userId: u.id,
-          amount: SEED_CREDITS,
-          type: "ONBOARDING",
-          source: "seed",
-          balanceAfter: newBalance,
-        },
+      await prisma.$transaction(async (tx) => {
+        const current = await tx.user.findUnique({
+          where: { id: u.id },
+          select: { creditBalance: true },
+        })
+        const newBalance = (current?.creditBalance ?? 0) + SEED_CREDITS
+        await tx.user.update({
+          where: { id: u.id },
+          data: { creditBalance: newBalance },
+        })
+        await tx.creditTransaction.create({
+          data: {
+            userId: u.id,
+            amount: SEED_CREDITS,
+            type: "ONBOARDING",
+            source: "seed",
+            balanceAfter: newBalance,
+          },
+        })
       })
     }
   }
@@ -144,7 +146,22 @@ async function main() {
     })
   }
 
-  console.log({ admin, instructor, user, ratingsSeeded: ratingsToCreate.length })
+  const refreshedUsers = await prisma.user.findMany({
+    where: { id: { in: seedUsers.map((u) => u.id) } },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      creditBalance: true,
+    },
+  })
+
+  const seededUsers = Object.fromEntries(
+    refreshedUsers.map((u) => [u.email, u])
+  )
+
+  console.log({ seededUsers, ratingsSeeded: ratingsToCreate.length })
 }
 
 main()
