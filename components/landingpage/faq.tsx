@@ -12,7 +12,7 @@ const FAQS = [
   },
   {
     q: "Is SkillNexus free to use?",
-    a: "Yes — peer-to-peer skill exchanges are completely free. We believe in democratizing learning by removing financial barriers. Masterclasses may have optional fees set by instructors, but swapping skills is always free.",
+    a: "Sign-up is free. You earn credits by teaching and spend them to learn through exchanges or masterclasses. This keeps the platform fair while rewarding educators.",
     icon: "✦", iconBg: "bg-rose-500/12", iconColor: "text-rose-400",
     hoverBorder: "hover:border-rose-500/25", openBorder: "border-rose-500/30",
   },

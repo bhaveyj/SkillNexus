@@ -163,6 +163,7 @@ async function seedExchangeData() {
       "Hi! Your profile caught my eye. I think we'd be great skill exchange partners!",
       "Hello! Let's help each other level up our skills. What do you say?",
     ];
+    const creditOptions = [null, 5, 10] as const;
     
     // Create various exchange requests with different statuses
     for (let i = 0; i < createdUsers.length && exchangeCount < 60; i++) {
@@ -211,6 +212,7 @@ async function seedExchangeData() {
             else status = 'DECLINED';
             
             try {
+              const creditAmount = creditOptions[Math.floor(Math.random() * creditOptions.length)];
               await prisma.exchangeRequest.create({
                 data: {
                   senderId: sender.id,
@@ -219,6 +221,7 @@ async function seedExchangeData() {
                   receiverSkillId,
                   status,
                   message: exchangeMessages[Math.floor(Math.random() * exchangeMessages.length)],
+                  creditAmount,
                 },
               });
               exchangeCount++;

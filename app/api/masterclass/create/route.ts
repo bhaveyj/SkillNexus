@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       duration,
       maxStudents,
       meetLink,
+      creditCost,
     } = await req.json();
 
     // Validate required fields
@@ -55,6 +56,18 @@ export async function POST(req: NextRequest) {
         { error: 'Missing required fields' },
         { status: 400 }
       );
+    }
+
+    let normalizedCreditCost = 0;
+    if (creditCost !== undefined && creditCost !== null && creditCost !== "") {
+      const parsedCost = Number(creditCost);
+      if (!Number.isInteger(parsedCost) || parsedCost < 0 || parsedCost > 15) {
+        return NextResponse.json(
+          { error: "Credit cost must be an integer between 0 and 15" },
+          { status: 400 }
+        );
+      }
+      normalizedCreditCost = parsedCost;
     }
 
     // Create masterclass
@@ -71,6 +84,7 @@ export async function POST(req: NextRequest) {
         duration,
         meetLink, // Use the provided link
         maxStudents: maxStudents ? parseInt(maxStudents) : null,
+        creditCost: normalizedCreditCost,
         avatar: user.image,
       },
     });

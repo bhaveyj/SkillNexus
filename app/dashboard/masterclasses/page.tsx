@@ -19,6 +19,7 @@ interface Masterclass {
   id: string; title: string; instructorName: string; date: Date; time: string;
   duration: string; enrollmentCount: number; avatar?: string; level: string;
   category: string; description?: string; meetLink: string; maxStudents?: number;
+  creditCost: number;
   isRegistered?: boolean; instructor?: Instructor;
 }
 
@@ -198,6 +199,9 @@ export default function MasterclassesPage() {
                         <span className="flex items-center gap-1.5"><Users size={11} />
                           {mc.enrollmentCount}{mc.maxStudents ? ` / ${mc.maxStudents}` : ""} enrolled
                         </span>
+                        <span className="flex items-center gap-1.5">
+                          <Award size={11} />{mc.creditCost > 0 ? `${mc.creditCost} credits` : "Free"}
+                        </span>
                       </div>
 
                       {mc.maxStudents && (
@@ -272,6 +276,7 @@ export default function MasterclassesPage() {
                       { icon: <Clock size={14} />,    label: "Time",     value: selected.time },
                       { icon: <Clock size={14} />,    label: "Duration", value: selected.duration },
                       { icon: <Users size={14} />,    label: "Enrolled", value: `${selected.enrollmentCount}${selected.maxStudents ? ` / ${selected.maxStudents}` : ""}` },
+                      { icon: <Award size={14} />,    label: "Credits",  value: selected.creditCost > 0 ? `${selected.creditCost} credits` : "Free" },
                     ].map(item => (
                       <div key={item.label} className="flex items-start gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05]">
                         <span className="text-violet-400/60 mt-0.5 shrink-0">{item.icon}</span>

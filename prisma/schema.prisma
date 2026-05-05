@@ -79,6 +79,8 @@ model User {
   linkedin      String?
   twitter       String?
   gmail         String?
+  creditBalance Int       @default(0)
+  creditTransactions CreditTransaction[]
 }
 
 model Masterclass {
@@ -95,6 +97,7 @@ model Masterclass {
   duration        String
   meetLink        String   // Google Meet link
   maxStudents     Int?
+  creditCost      Int      @default(0)
   avatar          String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -169,6 +172,7 @@ model ExchangeRequest {
   receiverSkill   Skill    @relation("ReceiverSkills", fields: [receiverSkillId], references: [id], onDelete: Cascade)
   status          ExchangeStatus @default(PENDING)
   message         String?
+  creditAmount    Int?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
@@ -228,6 +232,21 @@ model Rating {
   @@index([revieweeId])
 }
 
+model CreditTransaction {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount       Int
+  type         CreditTransactionType
+  source       String?
+  balanceAfter Int
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([source])
+  @@unique([userId, source])
+}
+
 // Custom enums
 enum UserRole {
   USER
@@ -257,6 +276,13 @@ enum SkillCategory {
   GAME_DEVELOPMENT
   TESTING
   OTHER
+}
+
+enum CreditTransactionType {
+  ONBOARDING
+  TEACH_REWARD
+  LEARN_SPEND
+  REFUND
 }
 
 enum ExchangeStatus {

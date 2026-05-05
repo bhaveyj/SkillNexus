@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { settleExchange } from "@/lib/services/creditService";
 
 export type SessionParticipantRole = "teacher" | "learner";
 
@@ -18,6 +19,7 @@ export interface MarkSessionCompleteResult {
 
 const sessionSelect = {
   id: true,
+  exchangeRequestId: true,
   participant1Id: true,
   participant2Id: true,
   status: true,
@@ -98,9 +100,23 @@ export async function markSessionComplete(
         select: sessionSelect,
       });
 
-      if (updatedSession.sessionType === "paid") {
-        // Placeholder for future credit transfer integration.
-        // await transferCredits(updatedSession.id);
+      if (
+        updatedSession.sessionType === "exchange" ||
+        updatedSession.sessionType === "paid"
+      ) {
+        const exchangeRequest = await tx.exchangeRequest.findUnique({
+          where: { id: updatedSession.exchangeRequestId },
+          select: { creditAmount: true },
+        });
+        const teacherId = updatedSession.participant1Id;
+        const learnerId = updatedSession.participant2Id;
+        await settleExchange(
+          tx,
+          teacherId,
+          learnerId,
+          updatedSession.id,
+          exchangeRequest?.creditAmount ?? null
+        );
       }
     }
 

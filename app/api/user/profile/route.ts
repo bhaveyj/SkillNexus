@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
         linkedin: true,
         twitter: true,
         gmail: true,
+        creditBalance: true,
       }
     })
 
@@ -116,6 +117,7 @@ export async function PUT(req: NextRequest) {
         website: true,
         role: true,
         updatedAt: true,
+        creditBalance: true,
         github: true,
         linkedin: true,
         twitter: true,

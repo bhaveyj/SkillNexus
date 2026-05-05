@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
+import { awardOnboarding } from "@/lib/services/creditService"
 import GoogleProvider from "next-auth/providers/google"
 import GitHubProvider from "next-auth/providers/github"
 import CredentialsProvider from "next-auth/providers/credentials"
@@ -85,6 +86,17 @@ export const authOptions: NextAuthOptions = {
         session.user.image = token.picture as string
       }
       return session
+    },
+  },
+  events: {
+    async createUser({ user }) {
+      try {
+        await prisma.$transaction(async (tx) => {
+          await awardOnboarding(tx, user.id)
+        })
+      } catch (error) {
+        console.error("Failed to award onboarding credits:", error)
+      }
     },
   },
 }

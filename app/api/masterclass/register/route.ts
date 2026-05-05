@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { chargeMasterclassRegistration } from "@/lib/services/creditService"
 import { sendMasterclassRegistrationEmail } from "@/lib/email"
 import { applyRateLimit, generalLimiter } from "@/middleware/rateLimiter"
 
@@ -80,12 +81,21 @@ export async function POST(_req: NextRequest) {
       );
     }
 
-    // Create registration
-    const registration = await prisma.masterclassRegistration.create({
-      data: {
-        userId: user.id,
-        masterclassId: masterclass.id,
-      },
+    const registration = await prisma.$transaction(async (tx) => {
+      await chargeMasterclassRegistration(
+        tx,
+        user.id,
+        masterclass.instructorId,
+        masterclass.id,
+        masterclass.creditCost
+      );
+
+      return tx.masterclassRegistration.create({
+        data: {
+          userId: user.id,
+          masterclassId: masterclass.id,
+        },
+      });
     });
 
     // Send email with Google Meet link
@@ -123,6 +133,12 @@ export async function POST(_req: NextRequest) {
       registration,
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "INSUFFICIENT_CREDITS") {
+      return NextResponse.json(
+        { error: "Insufficient credits to register for this masterclass" },
+        { status: 400 }
+      );
+    }
     console.error('Registration error:', error);
     return NextResponse.json(
       { error: 'Failed to register for masterclass' },
