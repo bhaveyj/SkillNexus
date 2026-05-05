@@ -26,6 +26,7 @@ interface ExchangeRequest {
   senderSkillId: string; receiverSkillId: string;
   status: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED";
   createdAt: string;
+  creditAmount?: number | null;
   sender?: { id: string; name: string | null; email: string; image: string | null };
   receiver?: { id: string; name: string | null; email: string; image: string | null };
   senderSkill: Skill; receiverSkill: Skill;
@@ -53,6 +54,7 @@ const EMPTY_EXCHANGE_REQUESTS: ExchangeRequest[] = [];
 
 const CATS = ["ALL","DEVOPS","CLOUD","WEB_DEVELOPMENT","BACKEND","FRONTEND","MOBILE","DATABASE","DATA_SCIENCE","AI_ML","UI_UX"];
 const fmt = (s: string) => s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+const CREDIT_OPTIONS = [5, 10];
 
 const SKILL_COLOR: Record<string, string> = {
   DEVOPS: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
@@ -128,6 +130,7 @@ export default function MarketplacePage() {
   const [proposeTarget, setProposeTarget] = useState<(UserOffer & { skills: Skill[] }) | null>(null);
   const [proposeMySkill, setProposeMySkill] = useState("");
   const [proposeTheirSkill, setProposeTheirSkill] = useState("");
+  const [proposeCreditAmount, setProposeCreditAmount] = useState(5);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [viewingProfile, setViewingProfile] = useState<{ id: string; name: string | null; email: string; image: string | null; bio: string | null; github: string | null; linkedin: string | null; twitter: string | null; gmail: string | null } | null>(null);
   const [profileRatings, setProfileRatings] = useState<UserRatingsResponse | null>(null);
@@ -326,11 +329,11 @@ export default function MarketplacePage() {
 
   const handlePropose = async () => {
     if (!proposeMySkill || !proposeTheirSkill || !proposeTarget) return;
-    const res = await fetch("/api/exchange-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ receiverId: proposeTarget.userId, senderSkillId: proposeMySkill, receiverSkillId: proposeTheirSkill }) });
+    const res = await fetch("/api/exchange-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ receiverId: proposeTarget.userId, senderSkillId: proposeMySkill, receiverSkillId: proposeTheirSkill, creditAmount: proposeCreditAmount }) });
     const data = await res.json();
     if (res.ok) {
       toast({ title: "Exchange proposed! 🎉" });
-      setIsProposeOpen(false); setProposeMySkill(""); setProposeTheirSkill(""); setProposeTarget(null);
+      setIsProposeOpen(false); setProposeMySkill(""); setProposeTheirSkill(""); setProposeTarget(null); setProposeCreditAmount(5);
       mutateExchanges();
     } else toast({ title: "Error", description: data.error, variant: "destructive" });
   };
@@ -860,6 +863,17 @@ export default function MarketplacePage() {
                           <p className="text-sm font-bold text-violet-300">{req.receiverSkill.name}</p>
                         </div>
                       </div>
+                      <div className="mb-4 flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                        <p className="text-[9px] font-black uppercase tracking-wider text-foreground/35">Credit offer</p>
+                        <span className={cn(
+                          "text-[10px] font-bold px-2.5 py-1 rounded-lg border",
+                          req.creditAmount
+                            ? "bg-amber-500/12 border-amber-500/20 text-amber-300"
+                            : "bg-white/[0.03] border-white/[0.08] text-foreground/35"
+                        )}>
+                          {req.creditAmount ? `${req.creditAmount} credits` : "No credits"}
+                        </span>
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         <Button size="sm" className="h-9 text-xs" onClick={() => respond(req.id, "accept")}>Accept Exchange</Button>
                         <Button size="sm" variant="glass" className="h-9 text-xs" onClick={() => respond(req.id, "decline")}>Decline</Button>
@@ -925,6 +939,18 @@ export default function MarketplacePage() {
                               <p className="text-[9px] font-black uppercase tracking-wider text-violet-400/50 mb-1">You want</p>
                               <p className="text-sm font-bold text-violet-300">{req.receiverSkill.name}</p>
                             </div>
+                          </div>
+
+                          <div className="mt-3 flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                            <p className="text-[9px] font-black uppercase tracking-wider text-foreground/35">Credit offer</p>
+                            <span className={cn(
+                              "text-[10px] font-bold px-2.5 py-1 rounded-lg border",
+                              req.creditAmount
+                                ? "bg-amber-500/12 border-amber-500/20 text-amber-300"
+                                : "bg-white/[0.03] border-white/[0.08] text-foreground/35"
+                            )}>
+                              {req.creditAmount ? `${req.creditAmount} credits` : "No credits"}
+                            </span>
                           </div>
 
                           {isAccepted && (
@@ -1007,7 +1033,7 @@ export default function MarketplacePage() {
 
       <Dialog open={isProposeOpen} onOpenChange={(o) => {
         setIsProposeOpen(o);
-        if (!o) { setProposeMySkill(""); setProposeTheirSkill(""); setProposeTarget(null); }
+        if (!o) { setProposeMySkill(""); setProposeTheirSkill(""); setProposeTarget(null); setProposeCreditAmount(5); }
       }}>
         <DialogContent className="max-w-xl bg-[#0d0a1e] border-white/[0.08] shadow-2xl p-0 overflow-hidden flex flex-col" style={{ maxHeight: "min(600px, 90vh)" }}>
           <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-violet-500/70 to-transparent" />
@@ -1136,6 +1162,29 @@ export default function MarketplacePage() {
                   </div>
                 </div>
 
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-amber-400 shadow-sm shadow-amber-400/40" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-foreground/40">Credit offer (optional)</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {CREDIT_OPTIONS.map((amount) => (
+                      <button
+                        key={amount}
+                        onClick={() => setProposeCreditAmount(amount)}
+                        className={cn(
+                          "px-3.5 py-2 rounded-xl text-xs font-bold border transition-all",
+                          proposeCreditAmount === amount
+                            ? "border-amber-400/60 bg-amber-400/15 text-amber-300"
+                            : "border-white/[0.08] bg-white/[0.02] text-foreground/50 hover:border-white/[0.16]"
+                        )}
+                      >
+                        {`${amount} credits`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className={cn(
                   "rounded-xl border transition-all duration-300 overflow-hidden",
                   proposeMySkill && proposeTheirSkill
@@ -1153,6 +1202,15 @@ export default function MarketplacePage() {
                           <span className="text-foreground/25 text-sm font-black">⇄</span>
                           <span className="px-2.5 py-1 rounded-lg bg-rose-500/12 border border-rose-500/20 text-xs font-bold text-rose-300">
                             {(proposeTarget?.skills || []).find((s: Skill) => s.id === proposeTheirSkill)?.name}
+                          </span>
+                          <span className="text-foreground/25 text-sm font-black">•</span>
+                          <span className={cn(
+                            "px-2.5 py-1 rounded-lg border text-xs font-bold",
+                            proposeCreditAmount > 0
+                              ? "bg-amber-500/12 border-amber-500/20 text-amber-300"
+                              : "bg-white/[0.03] border-white/[0.08] text-foreground/35"
+                          )}>
+                            {`${proposeCreditAmount} credits`}
                           </span>
                         </div>
                       ) : (

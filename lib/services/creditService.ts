@@ -60,9 +60,14 @@ export async function settleExchange(
   tx: CreditTxClient,
   teacherId: string,
   learnerId: string,
-  sessionId: string
+  sessionId: string,
+  creditAmount?: number | null
 ) {
-  const cost = EXCHANGE_CREDIT;
+  const cost = creditAmount ?? EXCHANGE_CREDIT;
+
+  if (!Number.isInteger(cost) || cost <= 0) {
+    throw new Error("INVALID_EXCHANGE_CREDIT");
+  }
 
   const learner = await tx.user.findUnique({
     where: { id: learnerId },

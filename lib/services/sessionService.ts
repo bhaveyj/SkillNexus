@@ -19,6 +19,7 @@ export interface MarkSessionCompleteResult {
 
 const sessionSelect = {
   id: true,
+  exchangeRequestId: true,
   participant1Id: true,
   participant2Id: true,
   status: true,
@@ -103,9 +104,19 @@ export async function markSessionComplete(
         updatedSession.sessionType === "exchange" ||
         updatedSession.sessionType === "paid"
       ) {
+        const exchangeRequest = await tx.exchangeRequest.findUnique({
+          where: { id: updatedSession.exchangeRequestId },
+          select: { creditAmount: true },
+        });
         const teacherId = updatedSession.participant1Id;
         const learnerId = updatedSession.participant2Id;
-        await settleExchange(tx, teacherId, learnerId, updatedSession.id);
+        await settleExchange(
+          tx,
+          teacherId,
+          learnerId,
+          updatedSession.id,
+          exchangeRequest?.creditAmount ?? null
+        );
       }
     }
 

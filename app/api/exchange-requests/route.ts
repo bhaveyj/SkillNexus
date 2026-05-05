@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { receiverId, senderSkillId, receiverSkillId, message } = body;
+    const { receiverId, senderSkillId, receiverSkillId, message, creditAmount } = body;
 
     // Validate input
     if (!receiverId || !senderSkillId || !receiverSkillId) {
@@ -184,6 +184,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let normalizedCredit: number | null = null;
+    if (creditAmount !== undefined && creditAmount !== null) {
+      const parsedCredit = Number(creditAmount);
+      if (![5, 10].includes(parsedCredit)) {
+        return NextResponse.json(
+          { error: "Credit amount must be 5 or 10" },
+          { status: 400 }
+        );
+      }
+      normalizedCredit = parsedCredit;
+    }
+
     // Create exchange request
     const exchangeRequest = await prisma.exchangeRequest.create({
       data: {
@@ -192,6 +204,7 @@ export async function POST(req: NextRequest) {
         senderSkillId,
         receiverSkillId,
         message,
+        creditAmount: normalizedCredit,
         status: "PENDING",
       },
       include: {

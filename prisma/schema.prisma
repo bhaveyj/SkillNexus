@@ -171,6 +171,7 @@ model ExchangeRequest {
   receiverSkill   Skill    @relation("ReceiverSkills", fields: [receiverSkillId], references: [id], onDelete: Cascade)
   status          ExchangeStatus @default(PENDING)
   message         String?
+  creditAmount    Int?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
