@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { MasterclassLevel, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -98,117 +98,182 @@ async function main() {
 
   console.log('Created instructors');
 
-  // Create masterclasses with auto-generated Meet links
-  // Mix of past (completed) and future (upcoming) sessions for testing
-  await prisma.masterclass.upsert({
-    where: { id: 'masterclass-1' },
-    update: {
-      date: new Date('2026-04-10T14:00:00'),
-    },
-    create: {
+  const pickCreditCost = () => Math.floor(Math.random() * 16);
+
+  const masterclasses = [
+    {
       id: 'masterclass-1',
-      title: 'Advanced Machine Learning',
-      description: 'Deep dive into advanced ML algorithms and techniques',
-      instructorId: instructor1.id,
-      instructorName: instructor1.name!,
-      category: 'AI/ML',
-      level: 'ADVANCED',
-      date: new Date('2026-04-10T14:00:00'),
-      time: '2:00 PM',
-      duration: '2 hours',
-      meetLink: generateMeetLink(), // Auto-generated
-      maxStudents: 50,
-      avatar: instructor1.image,
-    },
-  });
-
-  await prisma.masterclass.upsert({
-    where: { id: 'masterclass-2' },
-    update: {
-      date: new Date('2026-04-18T15:00:00'),
-    },
-    create: {
-      id: 'masterclass-2',
-      title: 'GenAI Fundamentals',
-      description: 'Introduction to Generative AI and its applications',
-      instructorId: instructor2.id,
-      instructorName: instructor2.name!,
-      category: 'AI/ML',
-      level: 'INTERMEDIATE',
-      date: new Date('2026-04-18T15:00:00'),
-      time: '3:00 PM',
-      duration: '1.5 hours',
-      meetLink: generateMeetLink(), // Auto-generated
-      maxStudents: 100,
-      avatar: instructor2.image,
-    },
-  });
-
-  await prisma.masterclass.upsert({
-    where: { id: 'masterclass-3' },
-    update: {
-      date: new Date('2026-04-25T16:00:00'),
-    },
-    create: {
-      id: 'masterclass-3',
-      title: 'Production ML Systems',
-      description: 'Build and deploy ML models in production environments',
-      instructorId: instructor3.id,
-      instructorName: instructor3.name!,
-      category: 'AI/ML',
-      level: 'ADVANCED',
-      date: new Date('2026-04-25T16:00:00'),
-      time: '4:00 PM',
-      duration: '2 hours',
-      meetLink: generateMeetLink(), // Auto-generated
-      maxStudents: 40,
-      avatar: instructor3.image,
-    },
-  });
-
-  await prisma.masterclass.upsert({
-    where: { id: 'masterclass-4' },
-    update: {
-      date: new Date('2026-05-05T14:00:00'),
-    },
-    create: {
-      id: 'masterclass-4',
       title: 'Cloud Native Development',
       description: 'Master Kubernetes and cloud-native application development',
-      instructorId: instructor4.id,
-      instructorName: instructor4.name!,
+      instructor: instructor4,
       category: 'Cloud',
-      level: 'INTERMEDIATE',
-      date: new Date('2026-05-05T14:00:00'),
+      level: MasterclassLevel.INTERMEDIATE,
+      date: '2026-05-28T14:00:00',
       time: '2:00 PM',
       duration: '2.5 hours',
-      meetLink: generateMeetLink(), // Auto-generated
       maxStudents: 60,
-      avatar: instructor4.image,
     },
-  });
-
-  await prisma.masterclass.upsert({
-    where: { id: 'masterclass-5' },
-    update: {
-      date: new Date('2026-05-15T13:00:00'),
-    },
-    create: {
-      id: 'masterclass-5',
+    {
+      id: 'masterclass-2',
       title: 'AI Ethics & Responsible AI',
       description: 'Understanding ethical implications and responsible AI practices',
-      instructorId: instructor5.id,
-      instructorName: instructor5.name!,
+      instructor: instructor5,
       category: 'AI/ML',
-      level: 'BEGINNER',
-      date: new Date('2026-05-15T13:00:00'),
+      level: MasterclassLevel.BEGINNER,
+      date: '2026-05-30T13:00:00',
       time: '1:00 PM',
       duration: '1 hour',
-      meetLink: generateMeetLink(), // Auto-generated
       maxStudents: 200,
-      avatar: instructor5.image,
     },
-  });
+    {
+      id: 'masterclass-3',
+      title: 'Advanced Machine Learning',
+      description: 'Deep dive into advanced ML algorithms and techniques',
+      instructor: instructor1,
+      category: 'AI/ML',
+      level: MasterclassLevel.ADVANCED,
+      date: '2026-06-02T14:00:00',
+      time: '2:00 PM',
+      duration: '2 hours',
+      maxStudents: 50,
+    },
+    {
+      id: 'masterclass-4',
+      title: 'GenAI Fundamentals',
+      description: 'Introduction to Generative AI and its applications',
+      instructor: instructor2,
+      category: 'AI/ML',
+      level: MasterclassLevel.INTERMEDIATE,
+      date: '2026-06-05T15:00:00',
+      time: '3:00 PM',
+      duration: '1.5 hours',
+      maxStudents: 120,
+    },
+    {
+      id: 'masterclass-5',
+      title: 'Production ML Systems',
+      description: 'Build and deploy ML models in production environments',
+      instructor: instructor3,
+      category: 'AI/ML',
+      level: MasterclassLevel.ADVANCED,
+      date: '2026-06-07T16:00:00',
+      time: '4:00 PM',
+      duration: '2 hours',
+      maxStudents: 40,
+    },
+    {
+      id: 'masterclass-6',
+      title: 'Kubernetes for Developers',
+      description: 'Deploy, scale, and troubleshoot containerized apps',
+      instructor: instructor4,
+      category: 'Cloud',
+      level: MasterclassLevel.INTERMEDIATE,
+      date: '2026-06-10T11:00:00',
+      time: '11:00 AM',
+      duration: '2 hours',
+      maxStudents: 80,
+    },
+    {
+      id: 'masterclass-7',
+      title: 'MLOps Essentials',
+      description: 'Monitoring, pipelines, and reliable ML delivery',
+      instructor: instructor3,
+      category: 'AI/ML',
+      level: MasterclassLevel.INTERMEDIATE,
+      date: '2026-06-12T13:30:00',
+      time: '1:30 PM',
+      duration: '2 hours',
+      maxStudents: 60,
+    },
+    {
+      id: 'masterclass-8',
+      title: 'Responsible Data Practices',
+      description: 'Privacy, bias, and accountability in ML projects',
+      instructor: instructor5,
+      category: 'AI/ML',
+      level: MasterclassLevel.BEGINNER,
+      date: '2026-06-14T12:00:00',
+      time: '12:00 PM',
+      duration: '1.5 hours',
+      maxStudents: 150,
+    },
+    {
+      id: 'masterclass-9',
+      title: 'Building Data Products',
+      description: 'From datasets to shipped features with measurable impact',
+      instructor: instructor1,
+      category: 'Data Science',
+      level: MasterclassLevel.INTERMEDIATE,
+      date: '2026-06-18T10:00:00',
+      time: '10:00 AM',
+      duration: '2 hours',
+      maxStudents: 90,
+    },
+    {
+      id: 'masterclass-10',
+      title: 'Feature Engineering Playbook',
+      description: 'Practical techniques to boost model performance',
+      instructor: instructor1,
+      category: 'Data Science',
+      level: MasterclassLevel.ADVANCED,
+      date: '2026-06-21T09:30:00',
+      time: '9:30 AM',
+      duration: '2 hours',
+      maxStudents: 75,
+    },
+    {
+      id: 'masterclass-11',
+      title: 'Scalable APIs with Node.js',
+      description: 'Design resilient services and optimize performance',
+      instructor: instructor4,
+      category: 'Web Development',
+      level: MasterclassLevel.INTERMEDIATE,
+      date: '2026-06-24T15:00:00',
+      time: '3:00 PM',
+      duration: '2 hours',
+      maxStudents: 120,
+    },
+    {
+      id: 'masterclass-12',
+      title: 'NLP in Production',
+      description: 'Deploy language models with practical constraints',
+      instructor: instructor2,
+      category: 'AI/ML',
+      level: MasterclassLevel.ADVANCED,
+      date: '2026-06-28T17:00:00',
+      time: '5:00 PM',
+      duration: '1.5 hours',
+      maxStudents: 70,
+    },
+  ];
+
+  for (const mc of masterclasses) {
+    const creditCost = pickCreditCost();
+    const data = {
+      title: mc.title,
+      description: mc.description,
+      instructorId: mc.instructor.id,
+      instructorName: mc.instructor.name!,
+      category: mc.category,
+      level: mc.level,
+      date: new Date(mc.date),
+      time: mc.time,
+      duration: mc.duration,
+      meetLink: generateMeetLink(),
+      maxStudents: mc.maxStudents,
+      avatar: mc.instructor.image,
+      creditCost,
+    };
+
+    await prisma.masterclass.upsert({
+      where: { id: mc.id },
+      update: data,
+      create: {
+        id: mc.id,
+        ...data,
+      },
+    });
+  }
 
   console.log('Created masterclasses');
 

@@ -85,9 +85,14 @@ export async function chargeMasterclassRegistration(
   tx: CreditTxClient,
   learnerId: string,
   instructorId: string,
-  masterclassId: string
+  masterclassId: string,
+  creditCost?: number | null
 ) {
-  const cost = MASTERCLASS_COST;
+  const cost = creditCost ?? MASTERCLASS_COST;
+
+  if (!Number.isInteger(cost) || cost <= 0) {
+    return null;
+  }
 
   const learner = await tx.user.findUnique({
     where: { id: learnerId },

@@ -86,7 +86,8 @@ export async function POST(_req: NextRequest) {
         tx,
         user.id,
         masterclass.instructorId,
-        masterclass.id
+        masterclass.id,
+        masterclass.creditCost
       );
 
       return tx.masterclassRegistration.create({

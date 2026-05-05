@@ -46,6 +46,7 @@ export default function CreateMasterclassPage() {
           date: datetime.toISOString(), time: timeStr,
           duration: fd.get("duration"), maxStudents: fd.get("maxStudents"),
           meetLink: fd.get("meetLink"),
+          creditCost: fd.get("creditCost"),
         }),
       });
       const result = await res.json();
@@ -134,6 +135,17 @@ export default function CreateMasterclassPage() {
               <input type="number" name="maxStudents" min="1"
                 placeholder="Leave blank for unlimited"
                 className={inputCls} />
+            </Field>
+
+            <Field label="Credits Required" hint="Set to 0 for free sessions">
+              <input
+                type="number"
+                name="creditCost"
+                min="0"
+                max="15"
+                defaultValue="0"
+                className={inputCls}
+              />
             </Field>
 
             <Field label="Google Meet Link" required hint="Create a Google Meet and paste the link here">

@@ -39,6 +39,7 @@ interface CreditTx {
   amount: number;
   type: string;
   source: string | null;
+  sourceType?: "masterclass" | "exchange" | null;
   balanceAfter: number;
   createdAt: string;
 }
@@ -202,7 +203,11 @@ export default function DashboardPage() {
   const formatCreditLabel = (tx: CreditTx) => {
     if (tx.type === "ONBOARDING") return "Onboarding bonus";
     if (tx.type === "TEACH_REWARD") return "Teaching reward";
-    if (tx.type === "LEARN_SPEND") return "Learning spend";
+    if (tx.type === "LEARN_SPEND") {
+      return tx.sourceType === "masterclass"
+        ? "Masterclass registration"
+        : "Learning spend";
+    }
     if (tx.type === "REFUND") return "Refund";
     return "Credit update";
   };
@@ -370,7 +375,7 @@ export default function DashboardPage() {
                     No credit activity yet. Earn credits by teaching.
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                     {creditHistory.map((tx) => (
                       <div key={tx.id} className="flex items-center justify-between text-xs">
                         <div>

@@ -31,7 +31,29 @@ export async function GET(req: NextRequest) {
       nextCursor = next?.id ?? null;
     }
 
-    return NextResponse.json({ transactions: rows, nextCursor });
+    const sources = rows
+      .map((row) => row.source)
+      .filter((source): source is string => typeof source === "string" && source.length > 0);
+
+    let masterclassIds = new Set<string>();
+    if (sources.length > 0) {
+      const masterclasses = await prisma.masterclass.findMany({
+        where: { id: { in: sources } },
+        select: { id: true },
+      });
+      masterclassIds = new Set(masterclasses.map((mc) => mc.id));
+    }
+
+    const transactions = rows.map((row) => {
+      const hasSpendOrReward = row.type === "LEARN_SPEND" || row.type === "TEACH_REWARD";
+      const sourceType = hasSpendOrReward && row.source
+        ? (masterclassIds.has(row.source) ? "masterclass" : "exchange")
+        : null;
+
+      return { ...row, sourceType };
+    });
+
+    return NextResponse.json({ transactions, nextCursor });
   } catch (error) {
     console.error("Error fetching credit transactions:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

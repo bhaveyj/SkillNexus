@@ -97,6 +97,7 @@ model Masterclass {
   duration        String
   meetLink        String   // Google Meet link
   maxStudents     Int?
+  creditCost      Int      @default(0)
   avatar          String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
