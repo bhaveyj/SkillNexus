@@ -64,6 +64,7 @@ model User {
   chatSessionsAsP1         ChatSession[]     @relation("ChatParticipant1")
   chatSessionsAsP2         ChatSession[]     @relation("ChatParticipant2")
   chatMessages             ChatMessage[]
+  masterclassQuizAttempts  MasterclassQuizAttempt[]
   ratingsGiven             Rating[]          @relation("Reviewer")
   ratingsReceived          Rating[]          @relation("Reviewee")
   
@@ -103,6 +104,8 @@ model Masterclass {
   updatedAt       DateTime @updatedAt
   
   registrations   MasterclassRegistration[]
+  quiz            MasterclassQuiz?
+  quizAttempts    MasterclassQuizAttempt[]
 }
 
 model MasterclassRegistration {
@@ -115,6 +118,34 @@ model MasterclassRegistration {
   emailSent       Boolean  @default(false)
   
   @@unique([userId, masterclassId])
+}
+
+model MasterclassQuiz {
+  id            String   @id @default(cuid())
+  masterclassId String   @unique
+  masterclass   Masterclass @relation(fields: [masterclassId], references: [id], onDelete: Cascade)
+  questions     Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  attempts      MasterclassQuizAttempt[]
+}
+
+model MasterclassQuizAttempt {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  masterclassId String
+  masterclass   Masterclass @relation(fields: [masterclassId], references: [id], onDelete: Cascade)
+  quizId        String
+  quiz          MasterclassQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers       Json
+  score         Int
+  maxScore      Int
+  feedback      Json
+  createdAt     DateTime @default(now())
+
+  @@index([userId, masterclassId])
 }
 
 model VerificationToken {

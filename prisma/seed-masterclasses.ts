@@ -1,8 +1,6 @@
 import { MasterclassLevel, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
-
 // Generate Google Meet link
 function generateMeetLink(): string {
   const characters = 'abcdefghijklmnopqrstuvwxyz';
@@ -22,7 +20,7 @@ function generateMeetLink(): string {
   return `https://meet.google.com/${segment1}-${segment2}-${segment3}`;
 }
 
-async function main() {
+export async function seedMasterclasses(prisma: PrismaClient) {
   console.log('Starting seed...');
 
   // Create instructor users
@@ -245,6 +243,54 @@ async function main() {
       duration: '1.5 hours',
       maxStudents: 70,
     },
+    {
+      id: 'masterclass-13',
+      title: 'Intro to Data Storytelling',
+      description: 'Turn analysis into compelling narratives with clear visuals',
+      instructor: instructor1,
+      category: 'Data Science',
+      level: MasterclassLevel.BEGINNER,
+      date: '2026-04-05T11:00:00',
+      time: '11:00 AM',
+      duration: '1.5 hours',
+      maxStudents: 80,
+    },
+    {
+      id: 'masterclass-14',
+      title: 'Serverless on the Edge',
+      description: 'Build fast, global APIs with edge runtimes',
+      instructor: instructor4,
+      category: 'Web Development',
+      level: MasterclassLevel.INTERMEDIATE,
+      date: '2026-04-09T14:30:00',
+      time: '2:30 PM',
+      duration: '2 hours',
+      maxStudents: 100,
+    },
+    {
+      id: 'masterclass-15',
+      title: 'Practical Prompt Engineering',
+      description: 'Design prompts that steer reliable LLM outputs',
+      instructor: instructor2,
+      category: 'AI/ML',
+      level: MasterclassLevel.INTERMEDIATE,
+      date: '2026-04-16T16:00:00',
+      time: '4:00 PM',
+      duration: '1.5 hours',
+      maxStudents: 120,
+    },
+    {
+      id: 'masterclass-16',
+      title: 'Cloud Cost Optimization',
+      description: 'Reduce spend with rightsizing, budgeting, and alerts',
+      instructor: instructor4,
+      category: 'Cloud',
+      level: MasterclassLevel.BEGINNER,
+      date: '2026-04-23T13:00:00',
+      time: '1:00 PM',
+      duration: '1 hour',
+      maxStudents: 90,
+    },
   ];
 
   for (const mc of masterclasses) {
@@ -278,7 +324,7 @@ async function main() {
   console.log('Created masterclasses');
 
   // Create a test user
-  await prisma.user.upsert({
+  const testUser = await prisma.user.upsert({
     where: { email: 'test@example.com' },
     update: {},
     create: {
@@ -289,14 +335,42 @@ async function main() {
     },
   });
 
+  const completedMasterclassIds = [
+    'masterclass-13',
+    'masterclass-14',
+    'masterclass-15',
+    'masterclass-16',
+  ];
+
+  const allUsers = await prisma.user.findMany({
+    select: { id: true },
+  });
+
+  await prisma.masterclassRegistration.createMany({
+    data: allUsers.flatMap((user) =>
+      completedMasterclassIds.map((masterclassId) => ({
+        userId: user.id,
+        masterclassId,
+      }))
+    ),
+    skipDuplicates: true,
+  });
+
   console.log('Seed completed successfully!');
 }
 
-main()
-  .catch((e) => {
+async function main() {
+  const prisma = new PrismaClient();
+  try {
+    await seedMasterclasses(prisma);
+  } catch (e) {
     console.error('Error during seeding:', e);
     process.exit(1);
-  })
-  .finally(async () => {
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+}
+
+if (process.argv[1]?.includes('seed-masterclasses')) {
+  void main();
+}

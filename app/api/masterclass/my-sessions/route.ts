@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import type { Masterclass, MasterclassRegistration } from "@prisma/client"
 import { applyRateLimit, generalLimiter } from "@/middleware/rateLimiter"
+import { getMasterclassEndAt, isMasterclassCompleted } from "@/lib/utils"
 
 type RegistrationWithMasterclass = MasterclassRegistration & {
   masterclass: Masterclass
@@ -44,21 +45,51 @@ export async function GET(req: NextRequest) {
       }
     })
 
+    const masterclassIds = registrations.map((reg) => reg.masterclass.id)
+    const latestAttempts = masterclassIds.length > 0
+      ? await prisma.masterclassQuizAttempt.findMany({
+          where: {
+            userId: user.id,
+            masterclassId: { in: masterclassIds },
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : []
+
+    const latestAttemptByMasterclass = new Map(
+      latestAttempts.map((attempt) => [attempt.masterclassId, attempt])
+    )
+
+    const now = new Date()
+
     // Map to the format needed by the frontend
-    const sessions = registrations.map((reg: RegistrationWithMasterclass) => ({
-      id: reg.masterclass.id,
-      title: reg.masterclass.title,
-      description: reg.masterclass.description,
-      instructorName: reg.masterclass.instructorName,
-      category: reg.masterclass.category,
-      level: reg.masterclass.level,
-      date: reg.masterclass.date,
-      time: reg.masterclass.time,
-      duration: reg.masterclass.duration,
-      meetLink: reg.masterclass.meetLink,
-      avatar: reg.masterclass.avatar,
-      registeredAt: reg.registeredAt,
-    }))
+    const sessions = registrations.map((reg: RegistrationWithMasterclass) => {
+      const attempt = latestAttemptByMasterclass.get(reg.masterclass.id) ?? null
+      return {
+        id: reg.masterclass.id,
+        title: reg.masterclass.title,
+        description: reg.masterclass.description,
+        instructorName: reg.masterclass.instructorName,
+        category: reg.masterclass.category,
+        level: reg.masterclass.level,
+        date: reg.masterclass.date,
+        time: reg.masterclass.time,
+        duration: reg.masterclass.duration,
+        meetLink: reg.masterclass.meetLink,
+        avatar: reg.masterclass.avatar,
+        registeredAt: reg.registeredAt,
+        endAt: getMasterclassEndAt(reg.masterclass.date, reg.masterclass.time, reg.masterclass.duration)?.toISOString() ?? null,
+        isCompleted: isMasterclassCompleted(reg.masterclass.date, reg.masterclass.time, reg.masterclass.duration, now),
+        latestQuizAttempt: attempt
+          ? {
+              id: attempt.id,
+              score: attempt.score,
+              maxScore: attempt.maxScore,
+              createdAt: attempt.createdAt,
+            }
+          : null,
+      }
+    })
 
     return NextResponse.json(sessions)
   } catch (error) {
