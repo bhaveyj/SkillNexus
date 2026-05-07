@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { seedMasterclasses } from './seed-masterclasses'
 
 const prisma = new PrismaClient()
 const SEED_CREDITS = 50
@@ -156,6 +157,8 @@ async function main() {
       creditBalance: true,
     },
   })
+
+  await seedMasterclasses(prisma)
 
   const seededUsers = Object.fromEntries(
     refreshedUsers.map((u) => [u.email, u])
