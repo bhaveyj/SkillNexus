@@ -1,8 +1,16 @@
 import OpenAI from "openai"
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY
+
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is missing")
+  }
+
+  return new OpenAI({
+    apiKey,
+  })
+}
 
 export interface MasterclassQuizQuestion {
   id: string
@@ -45,7 +53,7 @@ export async function generateMasterclassQuiz(input: {
     input.description ? `Description: ${input.description}` : "",
   ].filter(Boolean).join("\n")
 
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAIClient().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       {
@@ -135,7 +143,7 @@ export async function evaluateMasterclassQuiz(input: {
     JSON.stringify(evaluationPayload),
   ].join("\n")
 
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAIClient().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       {
