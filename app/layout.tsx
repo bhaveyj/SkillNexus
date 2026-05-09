@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import "./globals.css";
 
