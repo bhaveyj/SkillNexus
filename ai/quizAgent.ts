@@ -1,5 +1,17 @@
 import OpenAI from "openai"
 
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY
+
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is missing")
+  }
+
+  return new OpenAI({
+    apiKey,
+  })
+}
+
 export interface MasterclassQuizQuestion {
   id: string
   question: string
@@ -27,10 +39,6 @@ export async function generateMasterclassQuiz(input: {
   level: string
   questionCount?: number
 }): Promise<MasterclassQuizQuestion[]> {
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  })
-
   const questionCount = input.questionCount ?? DEFAULT_QUESTION_COUNT
   const prompt = [
     `Create a ${questionCount}-question multiple-choice quiz for the masterclass below.`,
@@ -45,7 +53,7 @@ export async function generateMasterclassQuiz(input: {
     input.description ? `Description: ${input.description}` : "",
   ].filter(Boolean).join("\n")
 
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAIClient().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       {
@@ -63,9 +71,14 @@ export async function generateMasterclassQuiz(input: {
     throw new Error("Empty response from AI")
   }
 
+  const cleanedResponse = responseText
+    .replace(/```json/g, "")
+    .replace(/```/g, "")
+    .trim()
+
   let parsed: { questions?: Array<{ question: string; options: string[]; correctOption: number; rationale?: string }> }
   try {
-    parsed = JSON.parse(responseText)
+    parsed = JSON.parse(cleanedResponse)
   } catch {
     throw new Error("Failed to parse quiz JSON")
   }
@@ -102,10 +115,6 @@ export async function evaluateMasterclassQuiz(input: {
   questions: MasterclassQuizQuestion[]
   answers: QuizAnswerInput[]
 }): Promise<QuizEvaluationResult> {
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  })
-
   const answerMap = new Map(input.answers.map((a) => [a.questionId, a.selectedOption]))
   const evaluationPayload = input.questions.map((q) => ({
     questionId: q.id,
@@ -115,17 +124,26 @@ export async function evaluateMasterclassQuiz(input: {
     selectedOption: answerMap.get(q.id),
   }))
 
+  const correctCount = input.questions.reduce((count, q) => {
+    const answer = answerMap.get(q.id);
+    return count + (answer === q.correctOption ? 1 : 0);
+  }, 0);
+
+  const totalQuestions = input.questions.length;
+
   const prompt = [
     "Evaluate the quiz attempt and provide brief, helpful explanations.",
+    `The user scored ${correctCount} out of ${totalQuestions}.`,
+    "DO NOT change or recalculate these numbers.",
     "Return JSON only with this shape:",
-    "{\"summary\":\"...\",\"feedback\":[{\"questionId\":\"q_1\",\"explanation\":\"...\"}]}",
+    "{\"summary\":\"short motivational summary without mentioning score numbers\",\"feedback\":[{\"questionId\":\"q_1\",\"explanation\":\"...\"}]}",
     "The explanation should mention why the correct option is right and why the selected option is wrong if applicable.",
     "Quiz:",
     `Title: ${input.title}`,
     JSON.stringify(evaluationPayload),
   ].join("\n")
 
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAIClient().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       {
@@ -140,23 +158,41 @@ export async function evaluateMasterclassQuiz(input: {
 
   const responseText = completion.choices[0]?.message?.content?.trim()
   if (!responseText) {
-    return fallbackEvaluation(input.questions)
+    return fallbackEvaluation(input.questions, correctCount)
   }
 
+  const cleanedResponse = responseText
+  .replace(/```json/g, "")
+  .replace(/```/g, "")
+  .trim()
+
   try {
-    const parsed = JSON.parse(responseText) as QuizEvaluationResult
+    const parsed = JSON.parse(cleanedResponse) as QuizEvaluationResult
     if (!parsed.summary || !Array.isArray(parsed.feedback)) {
-      return fallbackEvaluation(input.questions)
+      return fallbackEvaluation(input.questions, correctCount)
     }
-    return parsed
+    
+    return {
+      ...parsed,
+      summary:
+        correctCount === totalQuestions
+          ? `Perfect score! You answered all ${totalQuestions} questions correctly.`
+          : `You answered ${correctCount} out of ${totalQuestions} questions correctly. ${parsed.summary}`,
+    }
   } catch {
-    return fallbackEvaluation(input.questions)
+    return fallbackEvaluation(input.questions, correctCount)
   }
 }
 
-function fallbackEvaluation(questions: MasterclassQuizQuestion[]): QuizEvaluationResult {
+function fallbackEvaluation(
+  questions: MasterclassQuizQuestion[],
+  correctCount?: number
+): QuizEvaluationResult {
   return {
-    summary: "Review the explanations below to strengthen your understanding of this topic.",
+    summary:
+      typeof correctCount === "number"
+        ? `You answered ${correctCount} out of ${questions.length} questions correctly. Review the explanations below to strengthen your understanding.`
+        : "Review the explanations below to strengthen your understanding of this topic.",
     feedback: questions.map((q) => ({
       questionId: q.id,
       explanation: q.rationale || "Review the correct option and the concept behind this question.",

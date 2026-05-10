@@ -56,9 +56,13 @@ export async function GET(req: NextRequest) {
         })
       : []
 
-    const latestAttemptByMasterclass = new Map(
-      latestAttempts.map((attempt) => [attempt.masterclassId, attempt])
-    )
+    const latestAttemptByMasterclass = new Map()
+
+for (const attempt of latestAttempts) {
+  if (!latestAttemptByMasterclass.has(attempt.masterclassId)) {
+    latestAttemptByMasterclass.set(attempt.masterclassId, attempt)
+  }
+}
 
     const now = new Date()
 

@@ -91,10 +91,11 @@ export function Sidebar() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <div className="h-px bg-white/[0.06] mx-1 mb-2" />
+            <div className="h-px bg-white/[0.04] mx-1 mb-2" />
 
             <div className={cn(
               "flex items-center gap-3 px-2.5 py-2 rounded-xl",
+              "hover:bg-white/[0.03] transition-all duration-200",
               "text-foreground/60",
               !open && "justify-center",
             )}>
@@ -112,15 +113,32 @@ export function Sidebar() {
                   display: open ? "flex" : "none",
                   opacity: open ? 1 : 0,
                 }}
-                transition={{ duration: 0.15 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
                 className="flex-1 min-w-0 flex flex-col"
               >
                 <span className="text-xs font-semibold text-foreground/80 truncate">{userName}</span>
                 <span className="text-[10px] text-foreground/35 truncate">{session?.user?.email}</span>
-                <div className="mt-1">
-                  <span className="inline-flex items-center gap-2 px-2 py-1 rounded-full text-[11px] font-bold bg-amber-500/8 border border-amber-500/18 text-amber-300">
-                    <span className="text-[10px] font-black">CR</span>
-                    {profile ? `${profile.creditBalance ?? 0} credits` : "- credits"}
+                <div className="mt-1 flex items-center">
+                  <span
+                    className="
+      inline-flex items-center
+      gap-1.5
+      rounded-full
+      bg-amber-500/8
+      border border-amber-500/18
+      text-amber-300
+      px-2 py-[5px]
+      text-[11px] font-bold
+      leading-none
+    "
+                  >
+                    <span className="text-[10px] font-black leading-none">
+                      CR
+                    </span>
+
+                    <span className="leading-none">
+                      {profile ? `${profile.creditBalance ?? 0} credits` : "- credits"}
+                    </span>
                   </span>
                 </div>
               </motion.div>
@@ -156,8 +174,8 @@ export function Sidebar() {
           <DialogHeader>
             <DialogTitle className="text-foreground">Sign out?</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-{"You'll need to sign in again to access your dashboard."}     
-       </DialogDescription>
+              {"You'll need to sign in again to access your dashboard."}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowLogout(false)}>
@@ -178,7 +196,7 @@ export function Sidebar() {
 
 export function LogoFull() {
   return (
-<Link href="/" className="flex items-center gap-2.5 group">
+    <Link href="/" className="flex items-center gap-2.5 group">
       <div className="relative">
         <div className="absolute inset-0 rounded-lg bg-violet-500/20 blur group-hover:blur-md transition-all" />
         <img src="/logo.svg" alt="SkillNexus" className="relative h-7 w-7" />
@@ -196,7 +214,7 @@ export function LogoFull() {
 
 export function LogoIcon() {
   return (
-<Link href="/" className="flex items-center justify-center group">
+    <Link href="/" className="flex items-center justify-center group">
       <div className="relative">
         <div className="absolute inset-0 rounded-lg bg-violet-500/20 blur group-hover:blur-md transition-all" />
         <img src="/logo.svg" alt="SkillNexus" className="relative h-7 w-7" />
