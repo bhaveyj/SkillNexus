@@ -69,6 +69,7 @@ interface QuizFullScreenProps {
   quizTitle: string;
   quizSession: RegisteredMasterclass | null;
   isLoading: boolean;
+  loadingLabel: string;
   onClose: () => void;
   onSubmit: (
     answers: { questionId: string; selectedOption: number }[]
@@ -132,6 +133,7 @@ export function QuizFullScreen({
   quizTitle,
   quizSession,
   isLoading,
+  loadingLabel,
   onClose,
   onSubmit,
   isSubmitting,
@@ -729,7 +731,7 @@ export function QuizFullScreen({
                 <Loader2 size={34} className="animate-spin text-violet-500" />
 
                 <p className="text-sm text-foreground/40 font-semibold">
-                  Generating quiz questions...
+                  {loadingLabel}
                 </p>
               </div>
             ) : showRulesScreen ? (

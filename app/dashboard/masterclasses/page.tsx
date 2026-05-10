@@ -118,6 +118,7 @@ export default function MasterclassesPage() {
   // Quiz state
   const [quizOpen, setQuizOpen] = useState(false);
   const [quizLoading, setQuizLoading] = useState(false);
+  const [quizLoadingLabel, setQuizLoadingLabel] = useState("Generating quiz questions...");
   const [quizSubmitting, setQuizSubmitting] = useState(false);
   const [quizSession, setQuizSession] = useState<RegisteredMasterclass | null>(null);
   const [quizPayload, setQuizPayload] = useState<QuizPayload | null>(null);
@@ -187,6 +188,7 @@ const mySessions: RegisteredMasterclass[] = Array.isArray(mySessionsData)
     setQuizAttempt(null);
     setQuizReviewQuestions(null);
     setQuizTitle("");
+    setQuizLoadingLabel("Generating quiz questions...");
   };
 
   const openQuiz = async (sessionItem: RegisteredMasterclass) => {
@@ -195,6 +197,7 @@ const mySessions: RegisteredMasterclass[] = Array.isArray(mySessionsData)
     setQuizAttempt(null);
     setQuizReviewQuestions(null);
     setQuizTitle(sessionItem.title);
+    setQuizLoadingLabel("Generating quiz questions...");
     setQuizLoading(true);
     setQuizOpen(true);
 
@@ -221,6 +224,7 @@ const mySessions: RegisteredMasterclass[] = Array.isArray(mySessionsData)
     setQuizAttempt(null);
     setQuizReviewQuestions(null);
     setQuizTitle(sessionItem.title);
+    setQuizLoadingLabel("Loading quiz results...");
     setQuizLoading(true);
     setQuizOpen(true);
 
@@ -275,6 +279,7 @@ const mySessions: RegisteredMasterclass[] = Array.isArray(mySessionsData)
         quizTitle={quizTitle}
         quizSession={quizSession}
         isLoading={quizLoading}
+        loadingLabel={quizLoadingLabel}
         onClose={resetQuizState}
         onSubmit={handleSubmitQuiz}
         isSubmitting={quizSubmitting}
