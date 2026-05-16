@@ -23,13 +23,14 @@ interface UserOffer {
 }
 interface ExchangeRequest {
   id: string; senderId: string; receiverId: string;
-  senderSkillId: string; receiverSkillId: string;
+  senderSkillId?: string | null; receiverSkillId: string;
   status: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED";
   createdAt: string;
   creditAmount?: number | null;
+  requestType?: "SWAP" | "PAID";
   sender?: { id: string; name: string | null; email: string; image: string | null };
   receiver?: { id: string; name: string | null; email: string; image: string | null };
-  senderSkill: Skill; receiverSkill: Skill;
+  senderSkill?: Skill | null; receiverSkill: Skill;
 }
 interface UserRatingSummary {
   averageRating: number;
@@ -128,6 +129,7 @@ export default function MarketplacePage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isProposeOpen, setIsProposeOpen] = useState(false);
   const [proposeTarget, setProposeTarget] = useState<(UserOffer & { skills: Skill[] }) | null>(null);
+  const [proposeMode, setProposeMode] = useState<"swap" | "paid">("swap");
   const [proposeMySkill, setProposeMySkill] = useState("");
   const [proposeTheirSkill, setProposeTheirSkill] = useState("");
   const [proposeCreditAmount, setProposeCreditAmount] = useState(5);
@@ -328,12 +330,25 @@ export default function MarketplacePage() {
   };
 
   const handlePropose = async () => {
-    if (!proposeMySkill || !proposeTheirSkill || !proposeTarget) return;
-    const res = await fetch("/api/exchange-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ receiverId: proposeTarget.userId, senderSkillId: proposeMySkill, receiverSkillId: proposeTheirSkill, creditAmount: proposeCreditAmount }) });
+    if (!proposeTarget) return;
+    if (proposeMode === "swap" && (!proposeMySkill || !proposeTheirSkill)) return;
+    if (proposeMode === "paid" && !proposeTheirSkill) return;
+
+    const res = await fetch("/api/exchange-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        receiverId: proposeTarget.userId,
+        senderSkillId: proposeMode === "swap" ? proposeMySkill : null,
+        receiverSkillId: proposeTheirSkill,
+        creditAmount: proposeMode === "paid" ? proposeCreditAmount : null,
+        requestType: proposeMode === "swap" ? "SWAP" : "PAID",
+      }),
+    });
     const data = await res.json();
     if (res.ok) {
-      toast({ title: "Exchange proposed! 🎉" });
-      setIsProposeOpen(false); setProposeMySkill(""); setProposeTheirSkill(""); setProposeTarget(null); setProposeCreditAmount(5);
+      toast({ title: proposeMode === "swap" ? "Exchange proposed! 🎉" : "Mentorship requested! 🎉" });
+      setIsProposeOpen(false); setProposeMySkill(""); setProposeTheirSkill(""); setProposeTarget(null); setProposeCreditAmount(5); setProposeMode("swap");
       mutateExchanges();
     } else toast({ title: "Error", description: data.error, variant: "destructive" });
   };
@@ -560,10 +575,26 @@ export default function MarketplacePage() {
                             {!isMe && (
                               <div className="mt-auto pt-1">
                                 {!hasRequested ? (
-                                  <Button size="sm" className="w-full h-9 text-xs font-bold"
-                                    onClick={e => { e.stopPropagation(); setProposeTarget({ ...offer, skills: offerSkills }); setIsProposeOpen(true); }}>
-                                    Request Exchange
-                                  </Button>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Button size="sm" className="w-full h-9 text-xs font-bold"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        setProposeMode("swap");
+                                        setProposeTarget({ ...offer, skills: offerSkills });
+                                        setIsProposeOpen(true);
+                                      }}>
+                                      Request Exchange
+                                    </Button>
+                                    <Button size="sm" variant="glass" className="w-full h-9 text-xs font-bold"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        setProposeMode("paid");
+                                        setProposeTarget({ ...offer, skills: offerSkills });
+                                        setIsProposeOpen(true);
+                                      }}>
+                                      Request Mentorship
+                                    </Button>
+                                  </div>
                                 ) : (
                                   <Button size="sm" variant="glass" className="w-full h-9 text-xs" disabled>
                                     ✓ Request Sent
@@ -647,10 +678,26 @@ export default function MarketplacePage() {
                             {!isMe && (
                               <div className="mt-auto pt-1">
                                 {!hasRequested ? (
-                                  <Button size="sm" className="w-full h-9 text-xs font-bold"
-                                    onClick={e => { e.stopPropagation(); setProposeTarget({ ...offer, skills: offerSkills }); setIsProposeOpen(true); }}>
-                                    Request Exchange
-                                  </Button>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Button size="sm" className="w-full h-9 text-xs font-bold"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        setProposeMode("swap");
+                                        setProposeTarget({ ...offer, skills: offerSkills });
+                                        setIsProposeOpen(true);
+                                      }}>
+                                      Request Exchange
+                                    </Button>
+                                    <Button size="sm" variant="glass" className="w-full h-9 text-xs font-bold"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        setProposeMode("paid");
+                                        setProposeTarget({ ...offer, skills: offerSkills });
+                                        setIsProposeOpen(true);
+                                      }}>
+                                      Request Mentorship
+                                    </Button>
+                                  </div>
                                 ) : (
                                   <Button size="sm" variant="glass" className="w-full h-9 text-xs" disabled>
                                     ✓ Request Sent
@@ -682,8 +729,9 @@ export default function MarketplacePage() {
               {acceptedMatches.map(match => {
                 const isSender = match.senderId === session?.user?.id;
                 const other = isSender ? match.receiver : match.sender;
-                const mySkill = isSender ? match.senderSkill : match.receiverSkill;
-                const theirSkill = isSender ? match.receiverSkill : match.senderSkill;
+                const isPaid = match.requestType === "PAID";
+                const mySkill = isPaid ? match.receiverSkill : (isSender ? match.senderSkill : match.receiverSkill);
+                const theirSkill = isPaid ? null : (isSender ? match.receiverSkill : match.senderSkill);
                 const otherId = other?.id || "";
                 const ratingSummary = ratingMap[otherId] || { averageRating: 0, totalRatings: 0 };
                 const isAlreadyRated = Boolean(otherId && ratedByMe[otherId]);
@@ -708,16 +756,26 @@ export default function MarketplacePage() {
                       <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shrink-0">✓ Matched</span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="px-3.5 py-3 rounded-xl bg-emerald-500/6 border border-emerald-500/12">
-                        <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400/60 mb-1">You teach</p>
-                        <p className="text-sm font-bold text-emerald-300">{mySkill.name}</p>
+                    {isPaid ? (
+                      <div className="px-3.5 py-3 rounded-xl bg-amber-500/6 border border-amber-500/12">
+                        <p className="text-[9px] font-black uppercase tracking-wider text-amber-400/60 mb-1">
+                          {isSender ? "You learn" : "You teach"}
+                        </p>
+                        <p className="text-sm font-bold text-amber-300">{mySkill?.name}</p>
+                        <p className="text-[11px] text-foreground/40 mt-1">Paid mentorship</p>
                       </div>
-                      <div className="px-3.5 py-3 rounded-xl bg-violet-500/6 border border-violet-500/12">
-                        <p className="text-[9px] font-black uppercase tracking-wider text-violet-400/60 mb-1">You learn</p>
-                        <p className="text-sm font-bold text-violet-300">{theirSkill.name}</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="px-3.5 py-3 rounded-xl bg-emerald-500/6 border border-emerald-500/12">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400/60 mb-1">You teach</p>
+                          <p className="text-sm font-bold text-emerald-300">{mySkill?.name}</p>
+                        </div>
+                        <div className="px-3.5 py-3 rounded-xl bg-violet-500/6 border border-violet-500/12">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-violet-400/60 mb-1">You learn</p>
+                          <p className="text-sm font-bold text-violet-300">{theirSkill?.name}</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <p className="text-[11px] text-foreground/30">
                       Matched {new Date(match.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -843,6 +901,11 @@ export default function MarketplacePage() {
                 <div className="space-y-3">
                   {receivedRequests.map(req => (
                     <div key={req.id} className="rounded-2xl p-5 bg-white/[0.03] border border-white/[0.07] hover:border-white/[0.11] transition-all">
+                      {req.requestType === "PAID" && (
+                        <span className="inline-flex mb-3 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-300 border-amber-500/20">
+                          Mentorship request
+                        </span>
+                      )}
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
                           <Avatar src={req.sender?.image} name={req.sender?.name} size={10} />
@@ -855,25 +918,31 @@ export default function MarketplacePage() {
                       </div>
                       <div className="grid grid-cols-2 gap-2 mb-4">
                         <div className="px-4 py-3 rounded-xl bg-emerald-500/6 border border-emerald-500/12">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400/50 mb-1">They offer</p>
-                          <p className="text-sm font-bold text-emerald-300">{req.senderSkill.name}</p>
+                          <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400/50 mb-1">
+                            {req.requestType === "PAID" ? "Mentor teaches" : "They offer"}
+                          </p>
+                          <p className="text-sm font-bold text-emerald-300">{req.requestType === "PAID" ? req.receiverSkill.name : (req.senderSkill?.name || "Skill")}</p>
                         </div>
                         <div className="px-4 py-3 rounded-xl bg-violet-500/6 border border-violet-500/12">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-violet-400/50 mb-1">They want</p>
+                          <p className="text-[9px] font-black uppercase tracking-wider text-violet-400/50 mb-1">
+                            {req.requestType === "PAID" ? "You learn" : "They want"}
+                          </p>
                           <p className="text-sm font-bold text-violet-300">{req.receiverSkill.name}</p>
                         </div>
                       </div>
-                      <div className="mb-4 flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                        <p className="text-[9px] font-black uppercase tracking-wider text-foreground/35">Credit offer</p>
-                        <span className={cn(
-                          "text-[10px] font-bold px-2.5 py-1 rounded-lg border",
-                          req.creditAmount
-                            ? "bg-amber-500/12 border-amber-500/20 text-amber-300"
-                            : "bg-white/[0.03] border-white/[0.08] text-foreground/35"
-                        )}>
-                          {req.creditAmount ? `${req.creditAmount} credits` : "No credits"}
-                        </span>
-                      </div>
+                      {req.requestType === "PAID" && (
+                        <div className="mb-4 flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-foreground/35">Credits required</p>
+                          <span className={cn(
+                            "text-[10px] font-bold px-2.5 py-1 rounded-lg border",
+                            req.creditAmount
+                              ? "bg-amber-500/12 border-amber-500/20 text-amber-300"
+                              : "bg-white/[0.03] border-white/[0.08] text-foreground/35"
+                          )}>
+                            {req.creditAmount ? `${req.creditAmount} credits` : "Credits pending"}
+                          </span>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-2">
                         <Button size="sm" className="h-9 text-xs" onClick={() => respond(req.id, "accept")}>Accept Exchange</Button>
                         <Button size="sm" variant="glass" className="h-9 text-xs" onClick={() => respond(req.id, "decline")}>Decline</Button>
@@ -907,6 +976,11 @@ export default function MarketplacePage() {
                           <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
                         )}
                         <div className="p-5">
+                          {req.requestType === "PAID" && (
+                            <span className="inline-flex mb-3 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-300 border-amber-500/20">
+                              Mentorship request
+                            </span>
+                          )}
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                               <div className="relative">
@@ -932,26 +1006,32 @@ export default function MarketplacePage() {
 
                           <div className="grid grid-cols-2 gap-2">
                             <div className="px-4 py-3 rounded-xl bg-emerald-500/6 border border-emerald-500/12">
-                              <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400/50 mb-1">You offer</p>
-                              <p className="text-sm font-bold text-emerald-300">{req.senderSkill.name}</p>
+                              <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400/50 mb-1">
+                                {req.requestType === "PAID" ? "Mentor teaches" : "You offer"}
+                              </p>
+                              <p className="text-sm font-bold text-emerald-300">{req.requestType === "PAID" ? req.receiverSkill.name : (req.senderSkill?.name || "Skill")}</p>
                             </div>
                             <div className="px-4 py-3 rounded-xl bg-violet-500/6 border border-violet-500/12">
-                              <p className="text-[9px] font-black uppercase tracking-wider text-violet-400/50 mb-1">You want</p>
+                              <p className="text-[9px] font-black uppercase tracking-wider text-violet-400/50 mb-1">
+                                {req.requestType === "PAID" ? "You learn" : "You want"}
+                              </p>
                               <p className="text-sm font-bold text-violet-300">{req.receiverSkill.name}</p>
                             </div>
                           </div>
 
-                          <div className="mt-3 flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                            <p className="text-[9px] font-black uppercase tracking-wider text-foreground/35">Credit offer</p>
-                            <span className={cn(
-                              "text-[10px] font-bold px-2.5 py-1 rounded-lg border",
-                              req.creditAmount
-                                ? "bg-amber-500/12 border-amber-500/20 text-amber-300"
-                                : "bg-white/[0.03] border-white/[0.08] text-foreground/35"
-                            )}>
-                              {req.creditAmount ? `${req.creditAmount} credits` : "No credits"}
-                            </span>
-                          </div>
+                          {req.requestType === "PAID" && (
+                            <div className="mt-3 flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                              <p className="text-[9px] font-black uppercase tracking-wider text-foreground/35">Credits required</p>
+                              <span className={cn(
+                                "text-[10px] font-bold px-2.5 py-1 rounded-lg border",
+                                req.creditAmount
+                                  ? "bg-amber-500/12 border-amber-500/20 text-amber-300"
+                                  : "bg-white/[0.03] border-white/[0.08] text-foreground/35"
+                              )}>
+                                {req.creditAmount ? `${req.creditAmount} credits` : "Credits pending"}
+                              </span>
+                            </div>
+                          )}
 
                           {isAccepted && (
                             <div className="mt-3 flex items-center justify-between p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/12">
@@ -1033,7 +1113,7 @@ export default function MarketplacePage() {
 
       <Dialog open={isProposeOpen} onOpenChange={(o) => {
         setIsProposeOpen(o);
-        if (!o) { setProposeMySkill(""); setProposeTheirSkill(""); setProposeTarget(null); setProposeCreditAmount(5); }
+        if (!o) { setProposeMySkill(""); setProposeTheirSkill(""); setProposeTarget(null); setProposeCreditAmount(5); setProposeMode("swap"); }
       }}>
         <DialogContent className="max-w-xl bg-[#0d0a1e] border-white/[0.08] shadow-2xl p-0 overflow-hidden flex flex-col" style={{ maxHeight: "min(600px, 90vh)" }}>
           <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-violet-500/70 to-transparent" />
@@ -1049,7 +1129,9 @@ export default function MarketplacePage() {
                 <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-[#0d0a1e]" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-lg font-bold leading-tight">Propose Skill Exchange</h2>
+                <h2 className="text-lg font-bold leading-tight">
+                  {proposeMode === "swap" ? "Propose Skill Exchange" : "Request Mentorship"}
+                </h2>
                 <p className="text-xs text-foreground/40 mt-0.5">
                   with <span className="text-foreground/65 font-semibold">{proposeTarget?.user?.name}</span>
                   <span className="text-foreground/25 ml-1.5">· {proposeTarget?.user?.email}</span>
@@ -1059,7 +1141,7 @@ export default function MarketplacePage() {
           </div>
 
           <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain">
-            {myOffers.length === 0 ? (
+            {proposeMode === "swap" && myOffers.length === 0 ? (
               <div className="flex flex-col items-center gap-4 py-14 px-6 text-center">
                 <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-foreground/20">
                   <BookOpen size={26} />
@@ -1080,44 +1162,53 @@ export default function MarketplacePage() {
             ) : (
               <div className="p-6 space-y-5">
 
-                <div className="grid grid-cols-2 gap-4 items-start">
+                <div className={cn("grid gap-4 items-start", proposeMode === "swap" ? "grid-cols-2" : "grid-cols-1")}>
 
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <div className="w-2 h-2 rounded-full bg-violet-400 shadow-sm shadow-violet-400/50" />
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-foreground/40">I can teach</p>
-                      <span className="text-rose-400 text-xs">*</span>
-                      <span className="ml-auto text-[10px] text-foreground/20">{myOffers.length}</span>
+                  {proposeMode === "paid" && (
+                    <div className="px-4 py-3 rounded-xl border border-amber-500/15 bg-amber-500/5">
+                      <p className="text-xs text-amber-200/80 font-semibold">One-way learning request</p>
+                      <p className="text-[11px] text-amber-200/50 mt-1">You will pay credits to learn a skill from this mentor.</p>
                     </div>
-                    <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                      {myOffers.map(offer => {
-                        const selected = proposeMySkill === offer.skill.id;
-                        return (
-                          <button
-                            key={offer.id}
-                            onClick={() => setProposeMySkill(selected ? "" : offer.skill.id)}
-                            className={cn(
-                              "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all duration-150 group",
-                              selected
-                                ? "border-violet-500/50 bg-violet-500/12 shadow-sm shadow-violet-500/15"
-                                : "border-white/[0.07] bg-white/[0.02] hover:border-violet-500/25 hover:bg-violet-500/5",
-                            )}
-                          >
-                            <div className={cn(
-                              "w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all duration-150",
-                              selected ? "border-violet-500 bg-violet-500" : "border-white/20 group-hover:border-violet-400/40",
-                            )}>
-                              {selected && <Check size={8} className="text-white" />}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className={cn("text-xs font-semibold truncate", selected ? "text-foreground" : "text-foreground/60")}>{offer.skill.name}</p>
-                              <p className="text-[9px] text-foreground/25">{fmt(offer.skill.category)}</p>
-                            </div>
-                          </button>
-                        );
-                      })}
+                  )}
+
+                  {proposeMode === "swap" && (
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <div className="w-2 h-2 rounded-full bg-violet-400 shadow-sm shadow-violet-400/50" />
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-foreground/40">I can teach</p>
+                        <span className="text-rose-400 text-xs">*</span>
+                        <span className="ml-auto text-[10px] text-foreground/20">{myOffers.length}</span>
+                      </div>
+                      <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                        {myOffers.map(offer => {
+                          const selected = proposeMySkill === offer.skill.id;
+                          return (
+                            <button
+                              key={offer.id}
+                              onClick={() => setProposeMySkill(selected ? "" : offer.skill.id)}
+                              className={cn(
+                                "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all duration-150 group",
+                                selected
+                                  ? "border-violet-500/50 bg-violet-500/12 shadow-sm shadow-violet-500/15"
+                                  : "border-white/[0.07] bg-white/[0.02] hover:border-violet-500/25 hover:bg-violet-500/5",
+                              )}
+                            >
+                              <div className={cn(
+                                "w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all duration-150",
+                                selected ? "border-violet-500 bg-violet-500" : "border-white/20 group-hover:border-violet-400/40",
+                              )}>
+                                {selected && <Check size={8} className="text-white" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className={cn("text-xs font-semibold truncate", selected ? "text-foreground" : "text-foreground/60")}>{offer.skill.name}</p>
+                                <p className="text-[9px] text-foreground/25">{fmt(offer.skill.category)}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="flex flex-col gap-2.5">
                     <div className="flex items-center gap-2 mb-0.5">
@@ -1162,62 +1253,88 @@ export default function MarketplacePage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 rounded-full bg-amber-400 shadow-sm shadow-amber-400/40" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-foreground/40">Credit offer (optional)</p>
+                {proposeMode === "paid" && (
+                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 rounded-full bg-amber-400 shadow-sm shadow-amber-400/40" />
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-foreground/40">Credits required</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {CREDIT_OPTIONS.map((amount) => (
+                        <button
+                          key={amount}
+                          onClick={() => setProposeCreditAmount(amount)}
+                          className={cn(
+                            "px-3.5 py-2 rounded-xl text-xs font-bold border transition-all",
+                            proposeCreditAmount === amount
+                              ? "border-amber-400/60 bg-amber-400/15 text-amber-300"
+                              : "border-white/[0.08] bg-white/[0.02] text-foreground/50 hover:border-white/[0.16]"
+                          )}
+                        >
+                          {`${amount} credits`}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {CREDIT_OPTIONS.map((amount) => (
-                      <button
-                        key={amount}
-                        onClick={() => setProposeCreditAmount(amount)}
-                        className={cn(
-                          "px-3.5 py-2 rounded-xl text-xs font-bold border transition-all",
-                          proposeCreditAmount === amount
-                            ? "border-amber-400/60 bg-amber-400/15 text-amber-300"
-                            : "border-white/[0.08] bg-white/[0.02] text-foreground/50 hover:border-white/[0.16]"
-                        )}
-                      >
-                        {`${amount} credits`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                )}
 
                 <div className={cn(
                   "rounded-xl border transition-all duration-300 overflow-hidden",
-                  proposeMySkill && proposeTheirSkill
+                  (proposeMode === "swap" ? proposeMySkill && proposeTheirSkill : proposeTheirSkill)
                     ? "border-violet-500/20 bg-gradient-to-r from-violet-500/6 to-rose-500/5 opacity-100 max-h-24"
                     : "border-white/[0.05] bg-white/[0.02] opacity-60 max-h-24",
                 )}>
                   <div className="px-4 py-3 flex items-center gap-4">
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/25 mb-1.5">Exchange summary</p>
-                      {proposeMySkill && proposeTheirSkill ? (
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-foreground/25 mb-1.5">
+                        {proposeMode === "swap" ? "Exchange summary" : "Request summary"}
+                      </p>
+                      {(proposeMode === "swap" ? proposeMySkill && proposeTheirSkill : proposeTheirSkill) ? (
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="px-2.5 py-1 rounded-lg bg-violet-500/12 border border-violet-500/20 text-xs font-bold text-violet-300">
-                            {myOffers.find(o => o.skill.id === proposeMySkill)?.skill.name}
-                          </span>
-                          <span className="text-foreground/25 text-sm font-black">⇄</span>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-500/12 border border-rose-500/20 text-xs font-bold text-rose-300">
-                            {(proposeTarget?.skills || []).find((s: Skill) => s.id === proposeTheirSkill)?.name}
-                          </span>
-                          <span className="text-foreground/25 text-sm font-black">•</span>
-                          <span className={cn(
-                            "px-2.5 py-1 rounded-lg border text-xs font-bold",
-                            proposeCreditAmount > 0
-                              ? "bg-amber-500/12 border-amber-500/20 text-amber-300"
-                              : "bg-white/[0.03] border-white/[0.08] text-foreground/35"
-                          )}>
-                            {`${proposeCreditAmount} credits`}
-                          </span>
+                          {proposeMode === "swap" ? (
+                            <>
+                              <span className="px-2.5 py-1 rounded-lg bg-violet-500/12 border border-violet-500/20 text-xs font-bold text-violet-300">
+                                {myOffers.find(o => o.skill.id === proposeMySkill)?.skill.name}
+                              </span>
+                              <span className="text-foreground/25 text-sm font-black">⇄</span>
+                              <span className="px-2.5 py-1 rounded-lg bg-rose-500/12 border border-rose-500/20 text-xs font-bold text-rose-300">
+                                {(proposeTarget?.skills || []).find((s: Skill) => s.id === proposeTheirSkill)?.name}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/12 border border-emerald-500/20 text-xs font-bold text-emerald-300">
+                                Mentorship
+                              </span>
+                              <span className="text-foreground/25 text-sm font-black">→</span>
+                              <span className="px-2.5 py-1 rounded-lg bg-rose-500/12 border border-rose-500/20 text-xs font-bold text-rose-300">
+                                {(proposeTarget?.skills || []).find((s: Skill) => s.id === proposeTheirSkill)?.name}
+                              </span>
+                            </>
+                          )}
+                          {proposeMode === "paid" && (
+                            <>
+                              <span className="text-foreground/25 text-sm font-black">•</span>
+                              <span className={cn(
+                                "px-2.5 py-1 rounded-lg border text-xs font-bold",
+                                proposeCreditAmount > 0
+                                  ? "bg-amber-500/12 border-amber-500/20 text-amber-300"
+                                  : "bg-white/[0.03] border-white/[0.08] text-foreground/35"
+                              )}>
+                                {`${proposeCreditAmount} credits`}
+                              </span>
+                            </>
+                          )}
                         </div>
                       ) : (
-                        <p className="text-xs text-foreground/25 italic">Select one skill from each column above</p>
+                        <p className="text-xs text-foreground/25 italic">
+                          {proposeMode === "swap"
+                            ? "Select one skill from each column above"
+                            : "Select a skill and credits to continue"}
+                        </p>
                       )}
                     </div>
-                    {proposeMySkill && proposeTheirSkill && (
+                    {(proposeMode === "swap" ? proposeMySkill && proposeTheirSkill : proposeTheirSkill) && (
                       <div className="w-8 h-8 rounded-xl bg-emerald-500/12 border border-emerald-500/20 flex items-center justify-center shrink-0">
                         <Check size={14} className="text-emerald-400" />
                       </div>
@@ -1233,10 +1350,14 @@ export default function MarketplacePage() {
             <div className="flex gap-3">
               <Button
                 onClick={handlePropose}
-                disabled={!proposeMySkill || !proposeTheirSkill || myOffers.length === 0}
+                disabled={proposeMode === "swap"
+                  ? (!proposeMySkill || !proposeTheirSkill || myOffers.length === 0)
+                  : (!proposeTheirSkill || proposeCreditAmount <= 0)}
                 className="flex-1 h-10 font-bold"
               >
-                {proposeMySkill && proposeTheirSkill ? "Send Proposal →" : "Select Skills to Continue"}
+                {(proposeMode === "swap" ? proposeMySkill && proposeTheirSkill : proposeTheirSkill)
+                  ? (proposeMode === "swap" ? "Send Proposal →" : "Request Mentorship →")
+                  : (proposeMode === "swap" ? "Select Skills to Continue" : "Select a Skill and Credits to Continue")}
               </Button>
               <Button
                 variant="glass"

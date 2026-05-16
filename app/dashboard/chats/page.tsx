@@ -22,7 +22,8 @@ interface SessionCompletionState {
 
 interface ExchangeMatch {
   id: string; senderId: string; receiverId: string;
-  senderSkill: Skill; receiverSkill: Skill; createdAt: string;
+  senderSkill?: Skill | null; receiverSkill: Skill; createdAt: string;
+  requestType?: "SWAP" | "PAID";
   sessionStatus: SessionStatus;
   sessionType: SessionType;
   teacherCompleted: boolean;
@@ -39,25 +40,33 @@ interface ChatSession {
   learnerCompleted: boolean;
   participant1: { id: string; name: string | null; email: string; image: string | null };
   participant2: { id: string; name: string | null; email: string; image: string | null };
-  exchangeRequest: { id: string; senderId: string; receiverId: string; senderSkill: Skill; receiverSkill: Skill };
+  exchangeRequest: { id: string; senderId: string; receiverId: string; senderSkill?: Skill | null; receiverSkill: Skill; requestType?: "SWAP" | "PAID" };
   messages: { id: string; content: string; createdAt: string; sender: { id: string; name: string | null } }[];
   updatedAt: string;
 }
 
 function sessionToMatch(s: ChatSession): ExchangeMatch {
+  const sender = s.participant1.id === s.exchangeRequest.senderId
+    ? s.participant1
+    : s.participant2;
+  const receiver = s.participant1.id === s.exchangeRequest.receiverId
+    ? s.participant1
+    : s.participant2;
+
   return {
     id: s.exchangeRequest.id,
     senderId: s.exchangeRequest.senderId,
     receiverId: s.exchangeRequest.receiverId,
     senderSkill: s.exchangeRequest.senderSkill,
     receiverSkill: s.exchangeRequest.receiverSkill,
+    requestType: s.exchangeRequest.requestType,
     createdAt: s.updatedAt,
     sessionStatus: s.status,
     sessionType: s.sessionType,
     teacherCompleted: s.teacherCompleted,
     learnerCompleted: s.learnerCompleted,
-    sender: s.participant1,
-    receiver: s.participant2,
+    sender,
+    receiver,
   };
 }
 
@@ -107,8 +116,9 @@ function ChatPanel({ match, userId, ws }: {
 }) {
   const isSender = match.senderId === userId;
   const other = isSender ? match.receiver : match.sender;
-  const mySkill = isSender ? match.senderSkill : match.receiverSkill;
-  const theirSkill = isSender ? match.receiverSkill : match.senderSkill;
+  const isPaid = match.requestType === "PAID";
+  const mySkill = isPaid ? match.receiverSkill : (isSender ? match.senderSkill : match.receiverSkill);
+  const theirSkill = isPaid ? null : (isSender ? match.receiverSkill : match.senderSkill);
 
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
@@ -304,9 +314,19 @@ function ChatPanel({ match, userId, ws }: {
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs">
             <ArrowLeftRight size={11} className="text-foreground/30" />
-            <span className="text-emerald-400 font-semibold">{mySkill.name}</span>
-            <span className="text-foreground/20">·</span>
-            <span className="text-violet-400 font-semibold">{theirSkill.name}</span>
+            {isPaid ? (
+              <>
+                <span className="text-emerald-400 font-semibold">{isSender ? "You learn" : "You teach"}</span>
+                <span className="text-foreground/20">·</span>
+                <span className="text-violet-400 font-semibold">{mySkill?.name}</span>
+              </>
+            ) : (
+              <>
+                <span className="text-emerald-400 font-semibold">{mySkill?.name}</span>
+                <span className="text-foreground/20">·</span>
+                <span className="text-violet-400 font-semibold">{theirSkill?.name}</span>
+              </>
+            )}
           </div>
           <span className={cn(
             "flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border",
@@ -478,8 +498,9 @@ export default function ChatsPage() {
               const match = sessionToMatch(session);
               const isSender = match.senderId === userId;
               const other = isSender ? match.receiver : match.sender;
-              const mySkill = isSender ? match.senderSkill : match.receiverSkill;
-              const theirSkill = isSender ? match.receiverSkill : match.senderSkill;
+              const isPaid = match.requestType === "PAID";
+              const mySkill = isPaid ? match.receiverSkill : (isSender ? match.senderSkill : match.receiverSkill);
+              const theirSkill = isPaid ? null : (isSender ? match.receiverSkill : match.senderSkill);
               const lastMsg = session.messages[0];
               const isActive = selectedId === session.id;
 
@@ -509,9 +530,19 @@ export default function ChatsPage() {
                         </p>
                       ) : (
                         <p className="text-[10px] flex items-center gap-1 text-foreground/25">
-                          <span className="text-emerald-400">{mySkill.name}</span>
-                          <span>↔</span>
-                          <span className="text-violet-400">{theirSkill.name}</span>
+                          {isPaid ? (
+                            <>
+                              <span className="text-amber-400">Mentorship</span>
+                              <span>·</span>
+                              <span className="text-violet-400">{mySkill?.name}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-emerald-400">{mySkill?.name}</span>
+                              <span>↔</span>
+                              <span className="text-violet-400">{theirSkill?.name}</span>
+                            </>
+                          )}
                         </p>
                       )}
                     </div>

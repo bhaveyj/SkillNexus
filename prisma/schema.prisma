@@ -197,17 +197,18 @@ model ExchangeRequest {
   sender          User     @relation("SentExchangeRequests", fields: [senderId], references: [id], onDelete: Cascade)
   receiverId      String
   receiver        User     @relation("ReceivedExchangeRequests", fields: [receiverId], references: [id], onDelete: Cascade)
-  senderSkillId   String
-  senderSkill     Skill    @relation("SenderSkills", fields: [senderSkillId], references: [id], onDelete: Cascade)
+  senderSkillId   String?
+  senderSkill     Skill?   @relation("SenderSkills", fields: [senderSkillId], references: [id], onDelete: Cascade)
   receiverSkillId String
   receiverSkill   Skill    @relation("ReceiverSkills", fields: [receiverSkillId], references: [id], onDelete: Cascade)
+  requestType     ExchangeRequestType @default(SWAP)
   status          ExchangeStatus @default(PENDING)
   message         String?
-  creditAmount    Int?
+  creditAmount    Int?   @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
-  @@unique([senderId, receiverId, senderSkillId, receiverSkillId])
+  @@unique([senderId, receiverId, senderSkillId, receiverSkillId, requestType])
   @@index([receiverId, status])
   @@index([senderId, status])
 
@@ -332,4 +333,9 @@ enum SessionStatus {
 enum SessionType {
   exchange
   paid
+}
+
+enum ExchangeRequestType {
+  SWAP
+  PAID
 }

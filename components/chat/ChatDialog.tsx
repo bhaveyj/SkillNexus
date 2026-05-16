@@ -15,8 +15,9 @@ interface ExchangeMatch {
   id: string;
   senderId: string;
   receiverId: string;
-  senderSkill: Skill;
+  senderSkill?: Skill | null;
   receiverSkill: Skill;
+  requestType?: "SWAP" | "PAID";
   sender?: { id: string; name: string | null; email: string; image: string | null };
   receiver?: { id: string; name: string | null; email: string; image: string | null };
 }
@@ -92,6 +93,36 @@ export function ChatDialog({ open, onOpenChange, match }: ChatDialogProps) {
   const otherPerson = isUserSender ? match.receiver : match.sender;
   const mySkill = isUserSender ? match.senderSkill : match.receiverSkill;
   const theirSkill = isUserSender ? match.receiverSkill : match.senderSkill;
+  const skillSummary = (() => {
+    if (mySkill && theirSkill) {
+      return (
+        <>
+          Teaching{" "}
+          <span className="font-bold text-emerald-400">{mySkill.name}</span>
+          <span className="text-foreground/20 mx-1.5">·</span>
+          Learning{" "}
+          <span className="font-bold text-violet-400">{theirSkill.name}</span>
+        </>
+      );
+    }
+    if (mySkill) {
+      return (
+        <>
+          Teaching{" "}
+          <span className="font-bold text-emerald-400">{mySkill.name}</span>
+        </>
+      );
+    }
+    if (theirSkill) {
+      return (
+        <>
+          Learning{" "}
+          <span className="font-bold text-violet-400">{theirSkill.name}</span>
+        </>
+      );
+    }
+    return <span className="text-foreground/40">Skill details unavailable</span>;
+  })();
 
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
@@ -273,13 +304,7 @@ export function ChatDialog({ open, onOpenChange, match }: ChatDialogProps) {
 
           <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05]">
             <ArrowLeftRight size={11} className="text-foreground/30 shrink-0" />
-            <p className="text-xs text-foreground/40">
-              Teaching{" "}
-              <span className="font-bold text-emerald-400">{mySkill.name}</span>
-              <span className="text-foreground/20 mx-1.5">·</span>
-              Learning{" "}
-              <span className="font-bold text-violet-400">{theirSkill.name}</span>
-            </p>
+            <p className="text-xs text-foreground/40">{skillSummary}</p>
           </div>
         </div>
 

@@ -65,7 +65,7 @@ export async function generateRecommendations(userId: string): Promise<Recommend
   const completedSessions = completedExchanges.map((ex) => {
     const isSender = ex.senderId === userId
     return {
-      senderSkill: ex.senderSkill.name,
+      senderSkill: ex.senderSkill?.name || (ex.requestType === "PAID" ? "Mentorship" : "Unknown"),
       receiverSkill: ex.receiverSkill.name,
       partnerName: isSender
         ? ex.receiver.name || "Unknown"
