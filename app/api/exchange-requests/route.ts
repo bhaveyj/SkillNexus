@@ -113,10 +113,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { receiverId, senderSkillId, receiverSkillId, message, creditAmount } = body;
+    const { receiverId, senderSkillId, receiverSkillId, message, creditAmount, requestType } = body;
+
+    const normalizedType = requestType === "PAID" ? "PAID" : "SWAP";
 
     // Validate input
-    if (!receiverId || !senderSkillId || !receiverSkillId) {
+    if (!receiverId || !receiverSkillId || (normalizedType === "SWAP" && !senderSkillId)) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -131,21 +133,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if sender offers the skill
-    const senderOffer = await prisma.offer.findUnique({
-      where: {
-        userId_skillId: {
-          userId: session.user.id,
-          skillId: senderSkillId,
+    if (normalizedType === "SWAP") {
+      // Check if sender offers the skill
+      const senderOffer = await prisma.offer.findUnique({
+        where: {
+          userId_skillId: {
+            userId: session.user.id,
+            skillId: senderSkillId,
+          },
         },
-      },
-    });
+      });
 
-    if (!senderOffer) {
-      return NextResponse.json(
-        { error: "You must offer this skill to create an exchange" },
-        { status: 400 }
-      );
+      if (!senderOffer) {
+        return NextResponse.json(
+          { error: "You must offer this skill to create an exchange" },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if receiver offers the skill
@@ -166,16 +170,29 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for existing request
-    const existingRequest = await prisma.exchangeRequest.findUnique({
-      where: {
-        senderId_receiverId_senderSkillId_receiverSkillId: {
+    let existingRequest = null;
+    if (normalizedType === "SWAP") {
+      existingRequest = await prisma.exchangeRequest.findUnique({
+        where: {
+          senderId_receiverId_senderSkillId_receiverSkillId_requestType: {
+            senderId: session.user.id,
+            receiverId,
+            senderSkillId,
+            receiverSkillId,
+            requestType: normalizedType,
+          },
+        },
+      });
+    } else {
+      existingRequest = await prisma.exchangeRequest.findFirst({
+        where: {
           senderId: session.user.id,
           receiverId,
-          senderSkillId,
           receiverSkillId,
+          requestType: normalizedType,
         },
-      },
-    });
+      });
+    }
 
     if (existingRequest) {
       return NextResponse.json(
@@ -185,7 +202,14 @@ export async function POST(req: NextRequest) {
     }
 
     let normalizedCredit: number | null = null;
-    if (creditAmount !== undefined && creditAmount !== null) {
+    if (normalizedType === "PAID") {
+      if (creditAmount === undefined || creditAmount === null) {
+        return NextResponse.json(
+          { error: "Credit amount is required for one-way learning" },
+          { status: 400 }
+        );
+      }
+
       const parsedCredit = Number(creditAmount);
       if (![5, 10].includes(parsedCredit)) {
         return NextResponse.json(
@@ -201,10 +225,11 @@ export async function POST(req: NextRequest) {
       data: {
         senderId: session.user.id,
         receiverId,
-        senderSkillId,
+        senderSkillId: normalizedType === "SWAP" ? senderSkillId : null,
         receiverSkillId,
         message,
         creditAmount: normalizedCredit,
+        requestType: normalizedType,
         status: "PENDING",
       },
       include: {

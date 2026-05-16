@@ -69,12 +69,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Atomically find-or-create chat session (upsert avoids race-condition P2002)
+    const isPaid = exchangeRequest.requestType === "PAID";
+    const participant1Id = isPaid ? exchangeRequest.receiverId : exchangeRequest.senderId;
+    const participant2Id = isPaid ? exchangeRequest.senderId : exchangeRequest.receiverId;
+
     const chatSession = await prisma.chatSession.upsert({
       where: { exchangeRequestId },
       create: {
         exchangeRequestId,
-        participant1Id: exchangeRequest.senderId,
-        participant2Id: exchangeRequest.receiverId,
+        participant1Id,
+        participant2Id,
+        sessionType: isPaid ? "paid" : "exchange",
       },
       update: {},
       include: {
